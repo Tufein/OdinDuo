@@ -18,7 +18,7 @@
     <string name="step_connect_title">Connect your Retroid display</string>
     <string name="step_connect_body">Wait for protection to become active.</string>
     <string name="step_play_title">Return to your launcher</string>
-    <string name="step_play_body">Protection runs in the background, including during sleep.</string>
+    <string name="step_play_body">Protection keeps running when you close the app, including during sleep.</string>
     <string name="power_title">Power use</string>
     <string name="power_body">Keeping USB awake may use extra battery. Normal power management returns when you stop or unplug the display.</string>
     <string name="compatibility">Made for AYN Odin 3 · Retroid Dual Screen</string>
@@ -28,7 +28,7 @@
     <string name="chip_active">Protected</string>
     <string name="chip_error">Check connection</string>
     <string name="status_idle">Start protection, then connect your Retroid Dual Screen.</string>
-    <string name="status_restarted">Protection stopped when the app closed. Start a new session when you are ready.</string>
+    <string name="status_restarted">Protection is not running. Start a new session when you are ready.</string>
     <string name="status_stopped">Protection stopped. Normal USB power management has been restored.</string>
     <string name="status_not_running">Protection is not running. Start a new session when you are ready.</string>
     <string name="status_guard_error">Protection stopped. Check the recovery log for details.</string>

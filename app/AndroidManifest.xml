@@ -13,7 +13,8 @@
             <intent-filter><action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" /></intent-filter>
             <meta-data android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" android:resource="@xml/device_filter" />
         </activity>
-        <service android:name=".GuardService" android:exported="false" android:foregroundServiceType="specialUse">
+        <service android:name=".GuardService" android:exported="false" android:process=":guard"
+            android:stopWithTask="false" android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="User-enabled prevention of Retroid boot-HID USB runtime autosuspend using the stock AYN service, while the accessory is connected" />
         </service>

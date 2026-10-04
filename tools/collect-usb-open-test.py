@@ -54,7 +54,7 @@ try:
     else:
         print(f'USB settings pinned: {result.stdout.count("PIN ")}; original values restored: {result.stdout.count("RESTORE ")}; failures: {result.stdout.count("FAILED")}')
         if args.kind == 'app':
-            for source, target in [('files/guard-events.txt', 'app-events.txt'), ('shared_prefs/guard.xml', 'app-status.xml')]:
+            for source, target in [('files/guard-events.txt', 'app-events.txt'), ('files/guard-status.json', 'app-status.json'), ('files/guard-owner', 'app-owner.txt'), ('files/guard-heartbeat', 'app-heartbeat.txt')]:
                 data = run('shell', 'run-as', 'nl.retroid.touchguard', 'cat', source)
                 if not data.returncode:
                     (output / target).write_text(data.stdout)

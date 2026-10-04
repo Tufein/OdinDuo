@@ -1,0 +1,70 @@
+package nl.retroid.touchguard;
+
+import android.content.Context;
+import android.os.Process;
+import android.util.AtomicFile;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import org.json.JSONObject;
+
+/** Atomic status snapshots shared by the UI and the separate foreground-service process. */
+final class GuardStatusStore {
+    static final class Status {
+        final boolean running;
+        final String state;
+        final String text;
+        Status(boolean running, String state, String text) {
+            this.running = running;
+            this.state = state;
+            this.text = text;
+        }
+    }
+
+    private static AtomicFile file(Context context) {
+        return new AtomicFile(new File(context.getFilesDir(), "guard-status.json"));
+    }
+
+    static void write(Context context, boolean running, String state, String text) {
+        AtomicFile file = file(context);
+        FileOutputStream output = null;
+        try {
+            String stat = new String(Files.readAllBytes(new File("/proc/self/stat").toPath()), StandardCharsets.UTF_8);
+            JSONObject value = new JSONObject().put("running", running).put("state", state).put("status", text)
+                    .put("pid", Process.myPid()).put("start", ProcessIdentity.startTicks(stat));
+            output = file.startWrite();
+            output.write(value.toString().getBytes(StandardCharsets.UTF_8));
+            file.finishWrite(output);
+        } catch (Exception exception) {
+            if (output != null) file.failWrite(output);
+            EventLog.write(context, "status snapshot failed " + exception);
+        }
+    }
+
+    static Status read(Context context) {
+        try {
+            JSONObject value = new JSONObject(new String(file(context).readFully(), StandardCharsets.UTF_8));
+            boolean running = value.optBoolean("running") && (liveProcess(value) || VendorBridge.guardAlive(context));
+            String state = value.optString("state", "idle");
+            String text = value.optString("status", context.getString(R.string.status_idle));
+            if (!running && value.optBoolean("running")) {
+                return new Status(false, "idle", context.getString(R.string.status_restarted));
+            }
+            return new Status(running, state, text);
+        } catch (Exception exception) {
+            return new Status(false, "idle", context.getString(R.string.status_idle));
+        }
+    }
+
+    private static boolean liveProcess(JSONObject value) {
+        try {
+            int pid = value.getInt("pid");
+            if (pid <= 0) return false;
+            String stat = new String(Files.readAllBytes(new File("/proc/" + pid + "/stat").toPath()), StandardCharsets.UTF_8);
+            String name = new String(Files.readAllBytes(new File("/proc/" + pid + "/cmdline").toPath()), StandardCharsets.UTF_8);
+            return name.startsWith("nl.retroid.touchguard:guard" + (char) 0)
+                    && value.getString("start").equals(ProcessIdentity.startTicks(stat));
+        } catch (Exception exception) { return false; }
+    }
+}

@@ -8,6 +8,8 @@ owner_pid=
 owner_start=
 owner_uid=
 owner_token=
+owner_missing_until=0
+restart_grace=60
 log() { echo "$(date +%s) $*"; }
 clock_seconds() { read seconds unused < /proc/uptime; echo "${seconds%%.*}"; }
 owner_alive() {
@@ -21,11 +23,39 @@ owner_alive() {
   [ "$uid" = "$owner_uid" ] || return 1
   [ "$(cat /data/user/0/nl.retroid.touchguard/files/guard-enabled 2>/dev/null)" = "$owner_token" ] || return 1
   name=$(tr '\000' '\n' < "/proc/$owner_pid/cmdline" 2>/dev/null | head -n 1)
-  [ "$name" = nl.retroid.touchguard ]
+  case "$name" in nl.retroid.touchguard|nl.retroid.touchguard:guard) return 0 ;; *) return 1 ;; esac
+}
+refresh_owner() {
+  [ -z "$owner_pid" ] && return 0
+  owner_file=/data/user/0/nl.retroid.touchguard/files/guard-owner
+  [ -r "$owner_file" ] || return 1
+  { IFS= read -r next_pid; IFS= read -r next_start; IFS= read -r next_uid; IFS= read -r next_token; } < "$owner_file" || return 1
+  for value in "$next_pid" "$next_start" "$next_uid"; do
+    case "$value" in ''|*[!0-9]*) return 1 ;; esac
+  done
+  [ "$next_uid" = "$owner_uid" ] && [ "$next_token" = "$owner_token" ] || return 1
+  owner_pid=$next_pid
+  owner_start=$next_start
 }
 session_valid() {
-  owner_alive || return 1
-  [ "$end" = 0 ] || [ "$(clock_seconds)" -lt "$end" ]
+  [ "$end" = 0 ] || [ "$(clock_seconds)" -lt "$end" ] || return 1
+  [ -z "$owner_pid" ] && return 0
+  # Stop is immediate. Only a missing service process receives a bounded restart grace.
+  [ "$(cat /data/user/0/nl.retroid.touchguard/files/guard-enabled 2>/dev/null)" = "$owner_token" ] || return 1
+  if refresh_owner && owner_alive; then
+    [ "$owner_missing_until" = 0 ] || log "OWNER resumed pid=$owner_pid"
+    owner_missing_until=0
+    return 0
+  fi
+  now=$(clock_seconds)
+  if [ "$owner_missing_until" = 0 ]; then
+    owner_missing_until=$((now + restart_grace))
+    log "OWNER missing; restart grace=${restart_grace}s"
+  fi
+  [ "$now" -lt "$owner_missing_until" ]
+}
+heartbeat() {
+  [ -z "$owner_pid" ] || printf '%s %s\n' "$owner_token" "$(clock_seconds)" > "$base/guard-heartbeat"
 }
 find_rds() {
   for candidate in /sys/bus/usb/devices/*; do
@@ -87,7 +117,12 @@ stop_worker() {
   fi
 }
 case "$1" in
-  --stop) stop_worker; exit 0 ;;
+  --stop)
+    stop_worker
+    [ ! -d "$state" ] || { log 'RESTORE FAILED pending snapshots'; exit 1; }
+    log 'STOP completed'
+    exit 0
+    ;;
   --watchdog)
     case "$2" in ''|*[!0-9]*) exit 2 ;; esac
     end=$2
@@ -128,6 +163,9 @@ cleanup() {
   [ -z "$watchdog" ] || kill "$watchdog" 2>/dev/null
   restore_failed=0
   restore
+  if [ -n "$owner_token" ] && [ "$(cat "$base/guard-enabled" 2>/dev/null)" = "$owner_token" ]; then
+    rm -f "$base/guard-enabled" "$base/guard-owner" "$base/guard-heartbeat"
+  fi
   if [ "$restore_failed" = 0 ]; then rm -rf "$state"; else log "Restoration needs attention; snapshots retained in $state"; fi
   log 'GUARD stopped'
 }
@@ -141,6 +179,7 @@ watchdog=$!
 log "READY waiting for RDS; duration=${duration}s owner=$owner_pid worker=$$ watchdog=$watchdog"
 rds=
 while session_valid && [ ! -f "$state/stop" ]; do
+  heartbeat
   rds=$(find_rds) && break
   sleep 1
 done
@@ -172,6 +211,7 @@ for directory in $chain; do
 done
 previous=
 while session_valid && [ ! -f "$state/stop" ]; do
+  heartbeat
   current=$(find_rds)
   [ "$current" = "$rds" ] && [ "$(cat "$rds/devnum" 2>/dev/null)" = "$number" ] || { log 'RDS detached/replaced; restoring'; break; }
   for directory in $chain; do

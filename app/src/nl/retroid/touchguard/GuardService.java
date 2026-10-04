@@ -14,10 +14,8 @@ import android.os.IBinder;
 import android.os.SystemClock;
 
 public final class GuardService extends Service {
-    private static volatile boolean busy;
-    static boolean isBusy() { return busy; }
     private static final String CHANNEL = "touch-guard";
-    private static final String STOP = "nl.retroid.touchguard.STOP";
+    static final String STOP = "nl.retroid.touchguard.STOP";
     private HandlerThread thread;
     private Handler worker;
     private volatile boolean stopped;
@@ -76,9 +74,12 @@ public final class GuardService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
-        if (started) return START_NOT_STICKY;
+        if (started) return START_STICKY;
+        if (intent == null && !VendorBridge.guardAlive(this)) {
+            stopSelf();
+            return START_NOT_STICKY;
+        }
         started = true;
-        busy = true;
         try {
             Notification notification = notification(getString(R.string.status_preparing));
             if (Build.VERSION.SDK_INT >= 34) {
@@ -93,7 +94,7 @@ public final class GuardService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
-        getSharedPreferences("guard", MODE_PRIVATE).edit().putBoolean("running", true).apply();
+        GuardStatusStore.write(this, true, "starting", getString(R.string.status_starting));
         worker.post(() -> {
             if (stopped) return;
             try {
@@ -106,7 +107,12 @@ public final class GuardService extends Service {
                 finish(getString(R.string.status_start_error, exception.getMessage()), "error");
             }
         });
-        return START_NOT_STICKY;
+        return START_STICKY;
+    }
+
+    @Override public void onTaskRemoved(Intent rootIntent) {
+        EventLog.write(this, "app task closed; protection remains active");
+        super.onTaskRemoved(rootIntent);
     }
 
     private void finish(String text, String state) {
@@ -128,7 +134,7 @@ public final class GuardService extends Service {
         String text = getString(resource);
         if (text.equals(latestStatus)) return;
         latestStatus = text;
-        getSharedPreferences("guard", MODE_PRIVATE).edit().putString("status", text).putString("state", state).apply();
+        GuardStatusStore.write(this, true, state, text);
         ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).notify(1, notification(text));
         EventLog.write(this, "status " + text);
     }
@@ -136,7 +142,7 @@ public final class GuardService extends Service {
     @Override public void onDestroy() {
         stopped = true;
         worker.removeCallbacksAndMessages(null);
-        getSharedPreferences("guard", MODE_PRIVATE).edit().putString("status", getString(R.string.status_stopping)).putString("state", "stopping").apply();
+        GuardStatusStore.write(this, true, "stopping", getString(R.string.status_stopping));
         worker.post(() -> {
             try {
                 VendorBridge.stop(this);
@@ -150,9 +156,8 @@ public final class GuardService extends Service {
                 finalStatus = getString(R.string.status_stop_error);
                 finalState = "error";
             }
-            getSharedPreferences("guard", MODE_PRIVATE).edit().putBoolean("running", false).putString("status", finalStatus).putString("state", finalState).apply();
+            GuardStatusStore.write(this, false, finalState, finalStatus);
             EventLog.write(this, "service stopped: " + finalStatus);
-            busy = false;
             thread.quitSafely();
         });
         stopForeground(STOP_FOREGROUND_REMOVE);

@@ -14,3 +14,4 @@ java -cp app/build/check-classes nl.retroid.touchguard.ProcessIdentityTest
 java -cp app/build/check-classes nl.retroid.touchguard.UsbIdentityTest
 for script in app/build.sh capture.sh tools/*.sh; do bash -n "$script"; done
 python3 -m py_compile tools/collect-usb-open-test.py
+python3 app/tests/guard_lifecycle_test.py

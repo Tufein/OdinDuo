@@ -2,7 +2,6 @@ package nl.retroid.touchguard;
 
 import android.Manifest;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -28,6 +27,7 @@ public final class MainActivity extends AppCompatActivity {
     private Chip stateChip;
     private MaterialButton start;
     private MaterialButton stop;
+    private String localError;
 
     private final Runnable refresh = new Runnable() {
         @Override public void run() {
@@ -38,19 +38,6 @@ public final class MainActivity extends AppCompatActivity {
 
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
-        SharedPreferences preferences = getSharedPreferences("guard", MODE_PRIVATE);
-        if (!GuardService.isBusy()) {
-            if (preferences.getBoolean("running", false)) {
-                preferences.edit().putBoolean("running", false).putString("state", "idle")
-                        .putString("status", getString(R.string.status_restarted)).apply();
-            } else if (preferences.getInt("ui_version", 0) < 4) {
-                // Replace persisted Dutch copy when upgrading the original working app.
-                preferences.edit().putString("state", "idle")
-                        .putString("status", getString(R.string.status_idle)).apply();
-            }
-        }
-        preferences.edit().putInt("ui_version", 4).apply();
-
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         setContentView(R.layout.activity_main);
         View root = findViewById(R.id.root);
@@ -70,9 +57,7 @@ public final class MainActivity extends AppCompatActivity {
         ((TextView) findViewById(R.id.version)).setText(getString(R.string.version_label, BuildConfig.VERSION_NAME));
         start.setOnClickListener(view -> startGuard());
         stop.setOnClickListener(view -> {
-            if (!stopService(new Intent(this, GuardService.class))) {
-                setStatus("idle", getString(R.string.status_not_running));
-            }
+            startService(new Intent(this, GuardService.class).setAction(GuardService.STOP));
         });
         refreshStatus();
 
@@ -84,10 +69,10 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void refreshStatus() {
-        SharedPreferences preferences = getSharedPreferences("guard", MODE_PRIVATE);
-        status.setText(preferences.getString("status", getString(R.string.status_idle)));
-        String state = preferences.getString("state", "idle");
-        boolean busy = GuardService.isBusy();
+        GuardStatusStore.Status snapshot = GuardStatusStore.read(this);
+        status.setText(localError != null && !snapshot.running ? localError : snapshot.text);
+        String state = localError != null && !snapshot.running ? "error" : snapshot.state;
+        boolean busy = snapshot.running;
         start.setEnabled(!busy);
         stop.setEnabled(busy && !"stopping".equals(state));
         int titleResource = R.string.title_idle;
@@ -114,12 +99,17 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void setStatus(String state, String value) {
-        getSharedPreferences("guard", MODE_PRIVATE).edit().putString("state", state).putString("status", value).apply();
-        refreshStatus();
+        localError = "error".equals(state) ? value : null;
+        status.setText(value);
+        title.setText("error".equals(state) ? R.string.title_error : R.string.title_idle);
+        stateChip.setText("error".equals(state) ? R.string.chip_error : R.string.chip_idle);
+        start.setEnabled(true);
+        stop.setEnabled(false);
     }
 
     private void startGuard() {
-        if (GuardService.isBusy()) return;
+        if (GuardStatusStore.read(this).running) return;
+        localError = null;
         EventLog.write(this, "power protection requested");
         if (!VendorBridge.available()) {
             setStatus("error", getString(R.string.status_vendor_unavailable));
