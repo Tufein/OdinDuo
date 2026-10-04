@@ -114,4 +114,32 @@ with tempfile.TemporaryDirectory(prefix='odinduo-guard-') as directory:
             if process.poll() is None:
                 (app / 'guard-enabled').unlink(missing_ok=True)
                 process.wait(timeout=5)
-    print('Shell lifecycle checks passed: process loss, PID reuse, adoption, Stop and grace expiry')
+    # A connection monitor must be able to run fresh leases after complete detach restoration.
+    # Waiting for HID must leave all original controller settings untouched.
+    link = bus / '1-1'
+    link.unlink()
+    for cycle in range(3):
+        owner(50 + cycle, 1300 + cycle)
+        (app / 'guard-enabled').write_text(token)
+        (app / 'guard-heartbeat').touch()
+        with log.open('w') as output:
+            process = subprocess.Popen(['/bin/sh', str(script), '--watch-app', str(50 + cycle),
+                                        str(1300 + cycle), '10117', token],
+                                       stdout=output, stderr=subprocess.STDOUT, env=env, start_new_session=True)
+            try:
+                until(lambda: 'READY waiting for RDS' in log.read_text(), 'Monitor did not become ready')
+                assert all(p.read_text().strip() == 'auto' for p in controls), 'Waiting changed USB power'
+                (rds / 'devnum').write_text(str(10 + cycle) + '\n')
+                link.symlink_to(rds)
+                until(lambda: 'STATE control=on' in log.read_text(), 'Reconnected display was not protected')
+                assert all(p.read_text().strip() == 'on' for p in controls)
+                link.unlink()
+                until(lambda: 'GUARD stopped' in log.read_text(), 'Detach did not finish restoration')
+                process.wait(timeout=4)
+                assert all(p.read_text().strip() == 'auto' for p in controls), 'Detach did not restore USB power'
+                assert not (app / 'guard-enabled').exists(), 'Detached session marker survived'
+            finally:
+                if process.poll() is None:
+                    (app / 'guard-enabled').unlink(missing_ok=True)
+                    process.wait(timeout=5)
+    print('Shell lifecycle checks passed: process loss, PID reuse, adoption, Stop, grace expiry and 3 reconnects')

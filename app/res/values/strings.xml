@@ -1,41 +1,62 @@
 <resources>
     <string name="app_name">OdinDuo</string>
-    <string name="app_subtitle">Retroid touch protection</string>
+    <string name="app_subtitle">Your second screen, in sync.</string>
     <string name="status_label">TOUCH PROTECTION</string>
-    <string name="title_idle">Ready to protect</string>
-    <string name="title_waiting">Waiting for display</string>
-    <string name="title_starting">Getting ready</string>
-    <string name="title_active">Touch stays connected</string>
-    <string name="title_stopping">Restoring power settings</string>
-    <string name="title_error">Needs attention</string>
+    <string name="title_idle">Ready when you are.</string>
+    <string name="title_waiting">Connect. Play. Repeat.</string>
+    <string name="title_starting">Getting connected…</string>
+    <string name="title_active">Keep playing.</string>
+    <string name="title_stopping">Wrapping up…</string>
+    <string name="title_error">Needs attention.</string>
     <string name="device_connected">Retroid display connected</string>
-    <string name="device_disconnected">No Retroid display connected</string>
+    <string name="device_disconnected">Waiting for your Retroid display</string>
     <string name="start_protection">Start protection</string>
     <string name="stop_protection">Stop protection</string>
-    <string name="how_title">Start. Connect. Play.</string>
-    <string name="step_start_title">Start protection</string>
-    <string name="step_start_body">You can start before connecting the display.</string>
-    <string name="step_connect_title">Connect your Retroid display</string>
-    <string name="step_connect_body">Wait for protection to become active.</string>
-    <string name="step_play_title">Return to your launcher</string>
-    <string name="step_play_body">Protection keeps running when you close the app, including during sleep.</string>
-    <string name="power_title">Power use</string>
-    <string name="power_body">Keeping USB awake may use extra battery. Normal power management returns when you stop or unplug the display.</string>
-    <string name="compatibility">Made for AYN Odin 3 · Retroid Dual Screen</string>
-    <string name="version_label">OdinDuo %1$s</string>
-    <string name="chip_idle">Ready</string>
-    <string name="chip_waiting">Waiting</string>
+    <string name="background_hint">Keeps working when you close the app.</string>
+    <string name="automatic_title">Auto protect</string>
+    <string name="automatic_body">Ready for every connection. Protect your display automatically, even after restarting your Odin.</string>
+    <string name="automatic_on">On · ready for your next connection</string>
+    <string name="automatic_off">Off · start protection yourself</string>
+    <string name="automatic_paused">On · tap Start protection to resume</string>
+    <string name="appearance">Appearance</string>
+    <string name="appearance_title">Make it yours</string>
+    <string name="theme_system">Use device theme</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="help">Help &amp; diagnostics</string>
+    <string name="help_title">Made for your duo.</string>
+    <string name="help_body">1. Start protection or turn on Auto protect.
+2. Connect your Retroid Dual Screen.
+3. Wait for Protected, then return to your launcher.
+
+Protection keeps running when you swipe OdinDuo away from recent apps and during sleep.
+
+Auto protect stays ready between connections and resumes after a restart. Stop protection turns Auto protect off too.
+
+Keeping the connected USB display awake may use extra battery. Unplugging or stopping restores normal USB power management.
+
+After Android’s Force stop or its Active apps Stop, open OdinDuo again to resume.
+
+Built for AYN Odin 3 and Retroid Dual Screen. No root installation needed.</string>
+    <string name="share_diagnostics">Share diagnostics</string>
+    <string name="share_chooser">Share OdinDuo diagnostics</string>
+    <string name="share_error">Could not prepare diagnostics. Please try again.</string>
+    <string name="notification_permission_hint">Notifications are off. Enable them in Android settings to see protection status and the Stop control.</string>
+    <string name="compatibility">AYN Odin 3 + Retroid Dual Screen</string>
+    <string name="version_label">OdinDuo %1$s · %2$s</string>
+    <string name="chip_idle">Standby</string>
+    <string name="chip_waiting">Ready</string>
     <string name="chip_active">Protected</string>
-    <string name="chip_error">Check connection</string>
-    <string name="status_idle">Start protection, then connect your Retroid Dual Screen.</string>
+    <string name="chip_error">Attention</string>
+    <string name="status_idle">A little protection for your second screen. Start a session or enable Auto protect.</string>
     <string name="status_restarted">Protection is not running. Start a new session when you are ready.</string>
     <string name="status_stopped">Protection stopped. Normal USB power management has been restored.</string>
-    <string name="status_not_running">Protection is not running. Start a new session when you are ready.</string>
-    <string name="status_guard_error">Protection stopped. Check the recovery log for details.</string>
-    <string name="status_detached">The display was unplugged or protection ended. Normal power management has been restored.</string>
-    <string name="status_active">Protection is active. Return to your launcher and use your display as usual.</string>
-    <string name="status_detected">Retroid display detected. Setting up protection…</string>
-    <string name="status_waiting">Protection is ready. Connect your Retroid Dual Screen.</string>
+    <string name="status_guard_error">Protection stopped. Share diagnostics from Help to check what happened.</string>
+    <string name="status_detached">Display disconnected. Ready for your next session.</string>
+    <string name="status_active">Touch protection is active. Enjoy your display, through app switches and sleep.</string>
+    <string name="status_detected">Your display is here. Setting up touch protection…</string>
+    <string name="status_waiting">Your session is ready. Connect your Retroid Dual Screen.</string>
+    <string name="status_auto_waiting">Auto protect is ready. Plug in your display and protection starts automatically.</string>
     <string name="status_launch_timeout">Protection did not start. Open the app and try again.</string>
     <string name="status_log_error">Protection stopped because its log could not be read.</string>
     <string name="status_preparing">Preparing touch protection…</string>
@@ -43,9 +64,10 @@
     <string name="status_starting">Starting touch protection…</string>
     <string name="status_start_error">Could not start protection: %1$s</string>
     <string name="status_stopping">Stopping protection and restoring USB power management…</string>
-    <string name="status_restore_error">Power settings could not be fully restored. Keep the Odin connected for diagnosis.</string>
-    <string name="status_stop_error">Stopping could not be confirmed. Keep the Odin connected for diagnosis.</string>
-    <string name="status_vendor_unavailable">This device does not provide the required AYN service. OdinDuo supports the AYN Odin 3.</string>
+    <string name="status_restore_error">Power settings could not be fully restored. Share diagnostics from Help.</string>
+    <string name="status_stop_error">Stopping could not be confirmed. Share diagnostics from Help.</string>
+    <string name="status_settings_error">Could not save Auto protect. Please try again.</string>
+    <string name="status_vendor_unavailable">The required AYN service is unavailable. OdinDuo is made for the AYN Odin 3.</string>
     <string name="notification_channel">OdinDuo touch protection</string>
     <string name="notification_stop">Stop</string>
 </resources>

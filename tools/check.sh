@@ -9,9 +9,11 @@ mkdir -p app/build/check-classes
 javac --release 17 -d app/build/check-classes \
     app/src/nl/retroid/touchguard/ProcessIdentity.java \
     app/src/nl/retroid/touchguard/UsbIdentity.java \
-    app/tests/ProcessIdentityTest.java app/tests/UsbIdentityTest.java
+    app/src/nl/retroid/touchguard/GuardLogState.java \
+    app/tests/ProcessIdentityTest.java app/tests/UsbIdentityTest.java app/tests/GuardLogStateTest.java
 java -cp app/build/check-classes nl.retroid.touchguard.ProcessIdentityTest
 java -cp app/build/check-classes nl.retroid.touchguard.UsbIdentityTest
+java -cp app/build/check-classes nl.retroid.touchguard.GuardLogStateTest
 for script in app/build.sh capture.sh tools/*.sh; do bash -n "$script"; done
 python3 -m py_compile tools/collect-usb-open-test.py
 python3 app/tests/guard_lifecycle_test.py

@@ -11,6 +11,7 @@
         <item name="android:windowBackground">?attr/colorSurface</item>
     </style>
     <style name="ShapeAppearance.OdinDuo.Card" parent="ShapeAppearance.Material3.Corner.ExtraLarge" />
+    <style name="TextAppearance.OdinDuo.Hero" parent="TextAppearance.Material3.HeadlineMedium" />
     <style name="Widget.OdinDuo.Card" parent="Widget.Material3.CardView.Filled">
         <item name="shapeAppearance">@style/ShapeAppearance.OdinDuo.Card</item>
         <item name="cardElevation">0dp</item>

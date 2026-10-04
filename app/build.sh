@@ -11,6 +11,12 @@ if [ -z "${ANDROID_HOME:-}" ] && [ -z "${ANDROID_SDK_ROOT:-}" ] && [ -d "$HOME/L
     export ANDROID_HOME="$HOME/Library/Android/sdk"
 fi
 
-./gradlew :app:assembleDebug --console=plain
-cp app/build/outputs/apk/debug/app-debug.apk app/build/OdinDuo.apk
+variant=${1:-debug}
+case "$variant" in
+    debug) task=assembleDebug ;;
+    release) task=assembleRelease ;;
+    *) printf 'Usage: %s [debug|release]\n' "$0" >&2; exit 2 ;;
+esac
+./gradlew ":app:$task" --console=plain
+cp "app/build/outputs/apk/$variant/app-$variant.apk" app/build/OdinDuo.apk
 printf 'APK: %s/app/build/OdinDuo.apk\n' "$PWD"

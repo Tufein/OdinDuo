@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.0 — 2026-10-04
+
+- Redesign the English Material You dashboard with a single session action, clear connection status and layouts for portrait and landscape.
+- Add opt-in Auto protect: wait for the Retroid display, protect on connection, restore on detach, and prepare the next connection automatically.
+- Restore opted-in automatic mode after boot or app updates; Stop also disables automatic mode.
+- Preserve the tested USB power guard and protection after dismissing the app. Serialize a replacement service’s launch with the previous service’s restoration.
+- Add system/light/dark theme selection and adaptive/themed launcher icons.
+- Export bounded app diagnostics through the Android share sheet, with session tokens redacted and no internet permission.
+- Read the latest power observation instead of showing an earlier successful sample.
+- Publish a non-debuggable release APK with the existing update-compatible certificate.
+
 ## 0.5.0 — 2026-10-04
 
 - Keep touch protection running when OdinDuo is swiped away from recent apps.

@@ -1,0 +1,6 @@
+<resources>
+    <dimen name="page_padding">24dp</dimen>
+    <dimen name="card_padding">24dp</dimen>
+    <dimen name="hero_icon_size">64dp</dimen>
+    <dimen name="hero_gap">20dp</dimen>
+</resources>

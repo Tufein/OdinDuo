@@ -2,22 +2,26 @@
 
 Keep your **Retroid Dual Screen touchscreen working through sleep and wake on the AYN Odin 3**.
 
-OdinDuo applies a temporary USB power-management workaround through the stock AYN service. Its English interface uses Material 3, wallpaper-based system colours where supported, and automatic light/dark mode.
+OdinDuo applies a temporary USB power-management workaround through the stock AYN service. Its English Material 3 dashboard follows your wallpaper colours and offers system, light and dark themes. Enable **Auto protect** once to keep it ready for every display connection.
 
-![OdinDuo on the Odin 3, using the system Material You palette](docs/screenshots/landscape-dark.png)
+![OdinDuo 1.0 dashboard in dark mode, shown in an Android 15 emulator](docs/screenshots/landscape-dark.png)
 
 ## Download
 
-Install [OdinDuo 0.5.0](https://github.com/Tufein/OdinDuo/releases/tag/v0.5.0) from the release assets. The APK is signed with the same local test key as the earlier installation, so it can update that installation in place. Release assets include a SHA-256 checksum. This is a debuggable community preview build.
+Install [OdinDuo 1.0.0](https://github.com/Tufein/OdinDuo/releases/tag/v1.0.0) from the release assets. The signed release APK can update the earlier OdinDuo installation in place; it keeps the same package and signing certificate. A SHA-256 checksum is included. The 1.0 APK is **not debuggable**. Private signing keys are never published.
 
 ## Use
 
-1. Open **OdinDuo** and tap **Start protection**.
-2. Connect the Retroid Dual Screen. Starting with your computer attached is fine: the app waits for the display.
-3. Wait for **Touch stays connected / Protected**, then return to your launcher. You can close OdinDuo or swipe it away from recent apps; protection keeps running.
-4. Use **Stop protection**, the notification's **Stop** action, or unplug the display to end the session and restore power settings.
+1. Open **OdinDuo** and turn on **Auto protect**, or tap **Start protection** for a single session.
+2. Connect the Retroid Dual Screen and wait for **Protected**.
+3. Return to your launcher. Protection continues when you swipe OdinDuo out of recent apps and during sleep.
+4. Unplug the display: its original USB power settings return. With Auto protect enabled, OdinDuo stays ready and protects the next connection automatically.
 
-Start a new session after rebooting or reconnecting the display. Explicit **Force stop** in Android settings or **Stop** in Android’s Active apps panel ends the Android service. The helper restores settings if its service owner does not return within the bounded restart grace. Use OdinDuo’s own Stop button for immediate, confirmed restoration. There is no automatic start at boot. Android may show a notification permission prompt so the background session remains visible.
+**Auto protect** is off by default. Enabling it starts a visible foreground service that waits for the display, including while the app is closed. It requests restoration of this opted-in mode after reboot and app updates. No USB power settings are changed while waiting. Turn Auto protect off to keep only the current active session; **Stop protection** or the notification’s **Stop** action ends protection and switches Auto protect off too.
+
+Android may ask for notification permission. Allow it to see background status and the Stop action. Android’s **Force stop** or **Active apps → Stop** can still end the app; reopen OdinDuo to resume. Its own Stop button confirms immediate restoration; after unexpected process loss the helper allows a bounded restart grace before restoring.
+
+**Appearance** lets you choose system, light or dark mode. **Help & diagnostics → Share diagnostics** exports only the app’s bounded logs and basic device/version information through Android’s share sheet. Nothing is sent automatically; the app has no internet permission.
 
 **Compatibility:** tested on an AYN Odin 3 running Android 15, firmware `Odin3_V1.0.0.187_20260616_193307_user`, with the Retroid touchscreen `222a:0001`. Other devices, firmware versions and USB topologies are unverified. Android 13 or newer is required, but the stock AYN service and the expected Odin 3 USB topology must also be present.
 
@@ -40,6 +44,8 @@ The guard:
 
 The global `usbcore.autosuspend` setting is untouched. Runtime USB suspension and system sleep are different mechanisms. The app does not request an Android CPU wake lock, inject touches, alter launcher configuration, or request internet access.
 
+**Automatic connection handling:** the running guard detects the Retroid device directly in the USB topology, restores each finished connection before preparing the next, and keeps its foreground notification visible. It does not rely on a cold USB attach broadcast: Android can filter this accessory’s boot-HID interface. Open the app and enable Auto protect once; Android force-stop and firmware background restrictions can require reopening it.
+
 Normal Android USB permission is insufficient for this accessory: its boot-HID interface is filtered from the host API on the tested device. This is why OdinDuo uses the vendor service instead of a USB permission dialog.
 
 ## Build and install
@@ -55,9 +61,15 @@ adb -s YOUR_ODIN_SERIAL install -r app/build/OdinDuo.apk
 adb -s YOUR_ODIN_SERIAL shell am start -n nl.retroid.touchguard/.MainActivity
 ```
 
-The app remains `nl.retroid.touchguard` so OdinDuo can update the original test installation. Version **0.5.0** keeps protection running when the app is dismissed from recent apps. The English Material You interface introduced in 0.4.0 is retained.
+The app remains `nl.retroid.touchguard` so OdinDuo can update the original installation. Version **1.0.0** adds automatic connection sessions, opted-in boot/update startup, a redesigned dashboard, theme selection, adaptive/themed launcher icons and diagnostics sharing. The device-scoped shell power guard is unchanged.
 
-The canonical guard in `tools/pserver-power-guard.sh` is bundled as a generated resource during the build. Generated resources, APKs, device captures and signing keys are excluded from Git. This build produces a debuggable APK for direct installation. There is no published production signing key.
+The canonical guard in `tools/pserver-power-guard.sh` is bundled as a generated resource during the build. Generated resources, APKs, device captures and signing keys are excluded from Git. `./app/build.sh` produces a debug APK for development. To build the non-debuggable release:
+
+```sh
+./app/build.sh release
+```
+
+Release signing uses the existing ignored `app/build/debug.keystore` for compatibility with published versions. For your own signing key, set `ODINDUO_KEYSTORE`, `ODINDUO_STORE_PASSWORD`, `ODINDUO_KEY_ALIAS` and `ODINDUO_KEY_PASSWORD` in your local environment. Release builds require a private key; do not commit or publish it. A locally generated debug key cannot reproduce the public release’s signature.
 
 For an existing installation, preserve its signing key when building updates. The project reuses `app/build/debug.keystore` when present; otherwise Gradle uses its normal local debug key. APKs built with a different key cannot update an existing installation in place. Stop protection before uninstalling or replacing an installation.
 
@@ -65,20 +77,24 @@ For an existing installation, preserve its signing key when building updates. Th
 
 ```sh
 ./tools/check.sh
-./gradlew :app:lintDebug
+./gradlew :app:lintRelease
 ```
 
-The checks verify process identity parsing, rejection of truncated records, shell argument quoting without command substitution, and USB descriptor/target validation. The shell integration test runs the real guard against temporary fake proc/USB files: process loss preserves power settings, a reused PID is rejected, a new service adopts the session without resetting USB, explicit Stop restores promptly, and an expired restart grace restores the original settings. It never writes host or connected-device power settings. Emulator checks cannot establish that physical Retroid touch survives sleep.
+The checks verify process identity parsing, rejection of truncated records, shell argument quoting without command substitution, USB descriptor/target validation, and log parsing that honours the latest power state and gives restoration failures precedence. The shell integration test runs the real guard against temporary fake proc/USB files: process loss preserves power settings, a reused PID is rejected, a new service adopts the session without resetting USB, explicit Stop restores promptly, and an expired restart grace restores the original settings. It never writes host or connected-device power settings. Emulator checks cannot establish that physical Retroid touch survives sleep.
 
 Physical validation of the workaround recorded three sleep/wake pairs with genuine raw touch events after each wake. The tester reported five uninterrupted cycles in that run. The USB host was active in all 69 recorded samples; the Retroid device was active in 68 samples and briefly suspended in one. The guard corrected six firmware overwrites of the touchscreen's power setting.
 
-The self-contained 0.3 app was subsequently confirmed working by the tester. Start, Stop, launcher/background use and forced app termination were also checked on the Odin. Version 0.5.0 lifecycle checks passed on an isolated Android 15 emulator using a test-only stand-in for the stock PServer service: swiping the app away kept the foreground service running; killing only the service process triggered a sticky restart that adopted the same guard; reopening the UI preserved the session; Stop reported completion only after the guard exited. Cleanup of a leftover 0.4 session was also checked. No RDS was attached to that emulator; physical 0.5 validation on the Odin remains separate.
+The self-contained 0.3 app was subsequently confirmed working by the tester. Start, Stop, launcher/background use and forced app termination were also checked on the Odin. Version 0.5.0 lifecycle checks passed on an isolated Android 15 emulator using a test-only stand-in for the stock PServer service: swiping the app away kept the foreground service running; killing only the service process triggered a sticky restart that adopted the same guard; reopening the UI preserved the session; Stop reported completion only after the guard exited. Cleanup of a leftover 0.4 session was also checked. These emulator lifecycle checks used a service stand-in and cannot replace physical touch testing.
 
 Version 0.4.0 was installed as an in-place update on the same Odin. Its English UI was checked in portrait and landscape, in light and dark mode. Start reached the waiting state; Stop ended the worker and watchdog with the USB controllers still at their original `auto` settings while no RDS was connected. These results cover the tested device and firmware; long-duration reliability and battery use remain unmeasured.
 
+Version 1.0 validation additionally exercised the signed, non-debuggable APK in an isolated Android 15 emulator with a test-only PServer adapter and temporary fake USB files. Three automatic detach/restore/reconnect cycles passed. Closing recents retained protection; killing the service adopted the same existing guard. App replacement resumed automatic mode. A boot-completed receiver invocation and an immediate stop/restart restoration check passed; a complete physical Odin reboot remains unverified. Both themes and orientations were inspected. These simulated USB checks establish lifecycle and restoration behaviour, not physical touch or battery performance. The Odin was not connected during the 1.0 release checks.
+
 ## Diagnostics and removal
 
-Use the Odin's explicit ADB serial, especially if other devices or emulators are connected:
+For the published 1.0 APK, use **Help & diagnostics → Share diagnostics**. `adb shell run-as` is intentionally unavailable in the non-debuggable release. Diagnostics omit device serial numbers, account information and installed-app lists; session tokens are redacted.
+
+For developer builds, use the Odin’s explicit ADB serial, especially if other devices or emulators are connected:
 
 ```sh
 python3 tools/collect-usb-open-test.py --serial YOUR_ODIN_SERIAL --kind app

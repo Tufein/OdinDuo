@@ -1,0 +1,3 @@
+<resources>
+    <style name="TextAppearance.OdinDuo.Hero" parent="TextAppearance.Material3.HeadlineSmall" />
+</resources>

@@ -12,14 +12,21 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.SystemClock;
+import java.util.concurrent.CountDownLatch;
 
 public final class GuardService extends Service {
     private static final String CHANNEL = "touch-guard";
     static final String STOP = "nl.retroid.touchguard.STOP";
+    static final String AUTOMATIC_ON = "nl.retroid.touchguard.AUTOMATIC_ON";
+    static final String AUTOMATIC_OFF = "nl.retroid.touchguard.AUTOMATIC_OFF";
+    private static volatile CountDownLatch pendingRestoration = new CountDownLatch(0);
+    private CountDownLatch startupBarrier;
     private HandlerThread thread;
     private Handler worker;
     private volatile boolean stopped;
+    private volatile boolean ending;
     private boolean started;
+    private boolean automatic;
     private long launchTime;
     private String latestStatus = "";
     private String finalStatus;
@@ -27,28 +34,37 @@ public final class GuardService extends Service {
 
     private final Runnable poll = new Runnable() {
         @Override public void run() {
-            if (stopped) return;
+            if (stopped || ending) return;
             try {
                 String log = VendorBridge.readLog(GuardService.this);
-                if (log.contains("FAILED") || log.contains("readback failed")
-                        || log.contains("already exists") || log.contains("verification failed")
-                        || log.contains("rejected unexpected")) {
-                    finish(getString(R.string.status_guard_error), "error");
-                    return;
-                }
-                if (log.contains("GUARD stopped")) {
-                    finish(getString(R.string.status_detached), "idle");
-                    return;
-                }
-                if (log.contains("STATE control=on runtime=active host=active")) {
-                    status("active", R.string.status_active);
-                } else if (log.contains("RDS detected")) {
-                    status("starting", R.string.status_detected);
-                } else if (log.contains("READY waiting for RDS")) {
-                    status("waiting", R.string.status_waiting);
-                } else if (SystemClock.elapsedRealtime() - launchTime > 15000) {
-                    finish(getString(R.string.status_launch_timeout), "error");
-                    return;
+                switch (GuardLogState.read(log)) {
+                    case ERROR:
+                        finish(getString(R.string.status_guard_error), "error");
+                        return;
+                    case STOPPED:
+                        if (!automatic) {
+                            finish(getString(R.string.status_detached), "idle");
+                            return;
+                        }
+                        // Wait for complete restoration before starting the next connection lease.
+                        // The existing root guard scans for RDS without changing power while waiting.
+                        status("waiting", R.string.status_auto_waiting);
+                        VendorBridge.stop(GuardService.this);
+                        if (stopped || ending) return;
+                        EventLog.write(GuardService.this, "automatic mode rearmed after display detach");
+                        launchGuard();
+                        return;
+                    case ACTIVE: status("active", R.string.status_active); break;
+                    case STARTING: status("starting", R.string.status_detected); break;
+                    case WAITING:
+                        status("waiting", automatic ? R.string.status_auto_waiting : R.string.status_waiting);
+                        break;
+                    case EMPTY:
+                        if (SystemClock.elapsedRealtime() - launchTime > 15000) {
+                            finish(getString(R.string.status_launch_timeout), "error");
+                            return;
+                        }
+                        break;
                 }
                 worker.postDelayed(this, 1000);
             } catch (Exception exception) {
@@ -60,6 +76,8 @@ public final class GuardService extends Service {
 
     @Override public void onCreate() {
         super.onCreate();
+        startupBarrier = pendingRestoration;
+        automatic = GuardPreferences.automatic(this);
         finalStatus = getString(R.string.status_stopped);
         thread = new HandlerThread("retroid-power-guard");
         thread.start();
@@ -71,11 +89,27 @@ public final class GuardService extends Service {
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && STOP.equals(intent.getAction())) {
-            stopSelf();
+            ending = true;
+            worker.post(() -> {
+                try { GuardPreferences.setAutomatic(this, false); automatic = false; }
+                catch (Exception exception) {
+                    EventLog.write(this, "cannot save automatic setting " + exception);
+                    finalStatus = getString(R.string.status_settings_error);
+                    finalState = "error";
+                }
+                stopSelf();
+            });
             return START_NOT_STICKY;
         }
-        if (started) return START_STICKY;
-        if (intent == null && !VendorBridge.guardAlive(this)) {
+        if (ending || stopped) return START_NOT_STICKY;
+        String action = intent == null ? null : intent.getAction();
+        Boolean requestedMode = AUTOMATIC_ON.equals(action) ? Boolean.TRUE
+                : AUTOMATIC_OFF.equals(action) ? Boolean.FALSE : null;
+        if (started) {
+            if (requestedMode != null) worker.post(() -> updateAutomatic(requestedMode));
+            return START_STICKY;
+        }
+        if (intent == null && !automatic && !VendorBridge.guardAlive(this)) {
             stopSelf();
             return START_NOT_STICKY;
         }
@@ -96,12 +130,15 @@ public final class GuardService extends Service {
         }
         GuardStatusStore.write(this, true, "starting", getString(R.string.status_starting));
         worker.post(() -> {
-            if (stopped) return;
+            if (stopped || ending) return;
             try {
+                // Android can create the next service instance before the previous asynchronous
+                // onDestroy cleanup finishes. Never let its Stop tear down a new USB lease.
+                startupBarrier.await();
+                if (stopped || ending) return;
+                if (requestedMode != null && !updateAutomatic(requestedMode)) return;
                 status("starting", R.string.status_starting);
-                VendorBridge.start(this);
-                launchTime = SystemClock.elapsedRealtime();
-                worker.postDelayed(poll, 1000);
+                launchGuard();
             } catch (Exception exception) {
                 EventLog.write(this, "vendor launch failed " + exception);
                 finish(getString(R.string.status_start_error, exception.getMessage()), "error");
@@ -110,12 +147,40 @@ public final class GuardService extends Service {
         return START_STICKY;
     }
 
+    private boolean updateAutomatic(boolean enabled) {
+        try {
+            GuardPreferences.setAutomatic(this, enabled);
+            automatic = enabled;
+            EventLog.write(this, "automatic protection " + (enabled ? "enabled" : "disabled"));
+            if (!enabled && GuardLogState.read(VendorBridge.readLog(this)) != GuardLogState.State.ACTIVE) {
+                finish(getString(R.string.status_stopped), "idle");
+                return false;
+            }
+            if (enabled && GuardLogState.read(VendorBridge.readLog(this)) == GuardLogState.State.WAITING) {
+                status("waiting", R.string.status_auto_waiting);
+            }
+            return true;
+        } catch (Exception exception) {
+            EventLog.write(this, "automatic setting failed " + exception);
+            finish(getString(R.string.status_settings_error), "error");
+            return false;
+        }
+    }
+
+    private void launchGuard() throws Exception {
+        if (stopped || ending) return;
+        VendorBridge.start(this);
+        launchTime = SystemClock.elapsedRealtime();
+        worker.postDelayed(poll, 1000);
+    }
+
     @Override public void onTaskRemoved(Intent rootIntent) {
         EventLog.write(this, "app task closed; protection remains active");
         super.onTaskRemoved(rootIntent);
     }
 
     private void finish(String text, String state) {
+        ending = true;
         finalStatus = text;
         finalState = state;
         stopSelf();
@@ -141,6 +206,8 @@ public final class GuardService extends Service {
 
     @Override public void onDestroy() {
         stopped = true;
+        CountDownLatch restoration = new CountDownLatch(1);
+        pendingRestoration = restoration;
         worker.removeCallbacksAndMessages(null);
         GuardStatusStore.write(this, true, "stopping", getString(R.string.status_stopping));
         worker.post(() -> {
@@ -158,6 +225,7 @@ public final class GuardService extends Service {
             }
             GuardStatusStore.write(this, false, finalState, finalStatus);
             EventLog.write(this, "service stopped: " + finalStatus);
+            restoration.countDown();
             thread.quitSafely();
         });
         stopForeground(STOP_FOREGROUND_REMOVE);
