@@ -1,0 +1,32 @@
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto" style="@style/Widget.OdinDuo.Card"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    app:cardBackgroundColor="?attr/colorPrimaryContainer">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+            <com.google.android.material.textview.MaterialTextView android:id="@+id/state_title"
+                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginEnd="8dp"
+                android:text="@string/title_idle" android:textAppearance="?attr/textAppearanceHeadlineSmall" android:textColor="?attr/colorOnPrimaryContainer" />
+            <com.google.android.material.chip.Chip android:id="@+id/state_chip" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="@string/chip_idle" android:clickable="false" android:focusable="false" android:checkable="false"
+                android:textColor="?attr/colorOnSurface" app:chipBackgroundColor="?attr/colorSurfaceContainerLow" app:chipStrokeWidth="0dp" />
+        </LinearLayout>
+        <com.google.android.material.textview.MaterialTextView android:id="@+id/status"
+            android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp"
+            android:text="@string/status_idle" android:textAppearance="?attr/textAppearanceBodyMedium" android:textColor="?attr/colorOnPrimaryContainer"
+            android:accessibilityLiveRegion="polite" />
+        <com.google.android.material.textview.MaterialTextView android:id="@+id/device"
+            android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp"
+            android:text="@string/device_disconnected" android:textAppearance="?attr/textAppearanceLabelLarge" android:textColor="?attr/colorOnPrimaryContainer" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:orientation="horizontal">
+            <com.google.android.material.button.MaterialButton android:id="@+id/start"
+                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginEnd="8dp"
+                android:minHeight="56dp" android:text="@string/start_protection" app:cornerRadius="28dp"
+                android:textColor="@color/protection_start_text" app:backgroundTint="@color/protection_start_background" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/stop" style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:minHeight="56dp"
+                android:text="@string/stop_protection" app:cornerRadius="28dp"
+                android:textColor="@color/protection_button_text" app:strokeColor="@color/protection_button_stroke" />
+        </LinearLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

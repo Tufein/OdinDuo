@@ -1,0 +1,11 @@
+capture/
+build/
+.gradle/
+.idea/
+local.properties
+*.iml
+*.apk
+*.keystore
+__pycache__/
+.DS_Store
+app/res/raw/power_guard.sh

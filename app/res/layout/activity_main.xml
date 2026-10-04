@@ -1,0 +1,21 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:background="?attr/colorSurface">
+    <com.google.android.material.appbar.MaterialToolbar
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:minHeight="?attr/actionBarSize" app:title="@string/app_name" app:subtitle="@string/app_subtitle"
+        app:titleTextColor="?attr/colorOnSurface" app:subtitleTextColor="?attr/colorOnSurfaceVariant" />
+    <androidx.core.widget.NestedScrollView android:layout_width="match_parent"
+        android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:clipToPadding="false">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:padding="20dp">
+            <include layout="@layout/protection_card" />
+            <include layout="@layout/usage_card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" />
+            <com.google.android.material.textview.MaterialTextView android:id="@+id/version"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="20dp" android:gravity="center" android:textColor="?attr/colorOnSurfaceVariant"
+                android:textAppearance="?attr/textAppearanceBodySmall" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>
