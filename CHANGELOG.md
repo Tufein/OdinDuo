@@ -1,7 +1,10 @@
 # Changelog
 
-## 1.0.0 — 2026-10-04
+## 1.0.0 — 2026-10-05
 
+- Fix Auto protect stopping after display detach on stock Odin 3 firmware: use a short vendor request to a bundled stop helper, and confirm restoration before rearming.
+- Add Screen brightness guidance and a shortcut to Android Display settings. Automatic Retroid brightness control is unavailable on the tested setup; use the display’s hardware buttons to match manually.
+- Update the 1.0.0 APK in place with version code 7 and the existing signing certificate. Earlier GitHub releases are pre-releases.
 - Redesign the English Material You dashboard with a single session action, clear connection status and layouts for portrait and landscape.
 - Add opt-in Auto protect: wait for the Retroid display, protect on connection, restore on detach, and prepare the next connection automatically.
 - Restore opted-in automatic mode after boot or app updates; Stop also disables automatic mode.

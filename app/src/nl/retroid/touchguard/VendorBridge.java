@@ -112,12 +112,18 @@ final class VendorBridge {
         context.deleteFile("guard-heartbeat");
         File script = new File(context.getFilesDir(), "power-guard.sh");
         if (!script.isFile()) return;
-        String acknowledgement = "STOP acknowledged " + java.util.UUID.randomUUID().toString().replace("-", "");
-        String logPath = ProcessIdentity.quote(logFile(context).getAbsolutePath());
-        request("/system/bin/sh " + ProcessIdentity.quote(script.getAbsolutePath())
-                + " --stop >> " + logPath + " 2>&1; result=$?; "
-                + "[ ! -d /data/local/tmp/retroid-power-guard-state ] || result=1; printf "
-                + ProcessIdentity.quote(acknowledgement + " result=%s\n") + " \"$result\" >> " + logPath);
+        // The tested stock PServer accepts the long compound command but does not execute it.
+        // A short request to a bundled helper also works with a guard from an earlier APK.
+        File stopScript = new File(context.getFilesDir(), "power-stop.sh");
+        try (InputStream input = context.getResources().openRawResource(R.raw.power_stop);
+             OutputStream output = context.openFileOutput(stopScript.getName(), Context.MODE_PRIVATE)) {
+            byte[] buffer = new byte[8192];
+            int count;
+            while ((count = input.read(buffer)) >= 0) output.write(buffer, 0, count);
+        }
+        String token = java.util.UUID.randomUUID().toString().replace("-", "");
+        String acknowledgement = "STOP acknowledged " + token;
+        request("/system/bin/sh " + ProcessIdentity.quote(stopScript.getAbsolutePath()) + " " + token);
         long deadline = SystemClock.elapsedRealtime() + 5000;
         while (SystemClock.elapsedRealtime() < deadline) {
             String log = readLog(context);

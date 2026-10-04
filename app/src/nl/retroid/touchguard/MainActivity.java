@@ -82,6 +82,7 @@ public final class MainActivity extends AppCompatActivity {
             if (!updatingSwitch) setAutomatic(enabled);
         });
         findViewById(R.id.appearance).setOnClickListener(view -> chooseAppearance());
+        findViewById(R.id.brightness).setOnClickListener(view -> showBrightnessHelp());
         findViewById(R.id.help).setOnClickListener(view -> showHelp());
         refreshStatus();
 
@@ -199,6 +200,18 @@ public final class MainActivity extends AppCompatActivity {
                     getSharedPreferences("appearance", MODE_PRIVATE).edit().putInt("theme", mode).apply();
                     dialog.dismiss();
                     AppCompatDelegate.setDefaultNightMode(mode);
+                }).setNegativeButton(android.R.string.cancel, null).show();
+    }
+
+    private void showBrightnessHelp() {
+        new MaterialAlertDialogBuilder(this).setTitle(R.string.brightness_title)
+                .setMessage(R.string.brightness_body)
+                .setPositiveButton(R.string.display_settings, (dialog, which) -> {
+                    try {
+                        startActivity(new Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS));
+                    } catch (android.content.ActivityNotFoundException exception) {
+                        Toast.makeText(this, R.string.display_settings_unavailable, Toast.LENGTH_SHORT).show();
+                    }
                 }).setNegativeButton(android.R.string.cancel, null).show();
     }
 

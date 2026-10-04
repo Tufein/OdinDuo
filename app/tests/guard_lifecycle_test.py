@@ -34,15 +34,21 @@ with tempfile.TemporaryDirectory(prefix='odinduo-guard-') as directory:
     binaries.mkdir()
     (binaries / 'id').write_text('#!/bin/sh\n[ "$1" = -u ] && echo 0\n')
     (binaries / 'id').chmod(0o755)
-    script = root / 'guard.sh'
+    script = app / 'power-guard.sh'
     text = source.read_text()
-    for old, new in [('/data/user/0/nl.retroid.touchguard/files', str(app)),
+    replacements = [('/data/user/0/nl.retroid.touchguard/files', str(app)),
                      ('/data/local/tmp', str(root / 'data/local/tmp')),
                      ('/sys/', str(root / 'sys') + '/'),
                      ('/proc/', str(proc) + '/'),
-                     ('/system/bin/sh', '/bin/sh')]:
+                     ('/system/bin/sh', '/bin/sh')]
+    for old, new in replacements:
         text = text.replace(old, new)
     script.write_text(text)
+    stop_script = app / 'power-stop.sh'
+    stop_text = source.with_name('pserver-power-stop.sh').read_text()
+    for old, new in replacements:
+        stop_text = stop_text.replace(old, new)
+    stop_script.write_text(stop_text)
     (root / 'data/local/tmp').mkdir(parents=True)
     token = 'a' * 32
     def owner(pid, start):
@@ -138,8 +144,28 @@ with tempfile.TemporaryDirectory(prefix='odinduo-guard-') as directory:
                 process.wait(timeout=4)
                 assert all(p.read_text().strip() == 'auto' for p in controls), 'Detach did not restore USB power'
                 assert not (app / 'guard-enabled').exists(), 'Detached session marker survived'
+                acknowledgement = format(cycle + 1, '032x')
+                stopped = subprocess.run(['/bin/sh', str(stop_script), acknowledgement], env=env,
+                                         capture_output=True, text=True, timeout=5)
+                assert stopped.returncode == 0, 'Restored detach was not acknowledged'
+                assert f'STOP acknowledged {acknowledgement} result=0' in log.read_text()
             finally:
                 if process.poll() is None:
                     (app / 'guard-enabled').unlink(missing_ok=True)
                     process.wait(timeout=5)
-    print('Shell lifecycle checks passed: process loss, PID reuse, adoption, Stop, grace expiry and 3 reconnects')
+    # A successful shell exit alone must never acknowledge outstanding restoration snapshots.
+    state = root / 'data/local/tmp/retroid-power-guard-state'
+    state.mkdir()
+    (state / 'saved-0').write_text('pending restoration\n')
+    script.write_text('#!/bin/sh\nexit 0\n')
+    failed_token = 'f' * 32
+    pending = subprocess.run(['/bin/sh', str(stop_script), failed_token], env=env,
+                             capture_output=True, text=True, timeout=5)
+    assert pending.returncode == 1, 'Pending restoration was reported as successful'
+    assert state.is_dir(), 'Failed confirmation discarded snapshots'
+    assert f'STOP acknowledged {failed_token} result=1' in log.read_text()
+    previous_log = log.read_text()
+    invalid = subprocess.run(['/bin/sh', str(stop_script), 'invalid;token'], env=env,
+                             capture_output=True, text=True, timeout=5)
+    assert invalid.returncode == 2 and log.read_text() == previous_log, 'Invalid token was accepted'
+    print('Shell lifecycle checks passed: process loss, PID reuse, adoption, Stop, grace expiry, 3 reconnects and restoration acknowledgements')

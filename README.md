@@ -23,6 +23,10 @@ Android may ask for notification permission. Allow it to see background status a
 
 **Appearance** lets you choose system, light or dark mode. **Help & diagnostics → Share diagnostics** exports only the app’s bounded logs and basic device/version information through Android’s share sheet. Nothing is sent automatically; the app has no internet permission.
 
+**Screen brightness → Match your screens** explains how to match brightness manually and opens Android Display settings. Show the same image on both screens, adjust the Odin brightness and use the Retroid display’s hardware buttons to match by eye. Disable adaptive brightness on the Odin if you want the match to stay consistent. Equal slider percentages do not imply equal light output from different panels.
+
+Automatic brightness synchronisation is **not available on the tested Odin 3 + Retroid Dual Screen setup**. Android reports no SurfaceControl brightness support or backlight for the external display. Three DDC/CI brightness queries over its identified DisplayPort AUX bus returned all-zero responses rather than a valid brightness value. No brightness-setting packets were sent. Retroid [documents dedicated brightness buttons](https://www.goretroid.com/products/retroid-dual-screen-add-on); no usable software brightness controller was established in this investigation.
+
 **Compatibility:** tested on an AYN Odin 3 running Android 15, firmware `Odin3_V1.0.0.187_20260616_193307_user`, with the Retroid touchscreen `222a:0001`. Other devices, firmware versions and USB topologies are unverified. Android 13 or newer is required, but the stock AYN service and the expected Odin 3 USB topology must also be present.
 
 Keeping USB awake may use extra battery, including during sleep. Battery impact has not been measured. This prevents the observed failure during an active session; it is not a guaranteed recovery method for a touchscreen that has already stopped responding.
@@ -41,6 +45,8 @@ The guard:
 - Ties the session to the foreground service’s PID, process start time, UID, package name and a unique marker. The service runs in its own `:guard` process and uses Android’s `START_STICKY` restart policy. Atomic status snapshots let the reopened UI display the existing session without starting a duplicate guard.
 - Allows up to 60 seconds for Android to restart an unexpectedly killed service process; the restarted service adopts the existing guard and keeps the saved USB settings. If no valid owner returns, the guard restores settings and exits. Explicit Stop bypasses this grace period. A separate watchdog handles unexpected worker termination.
 - Retains restoration snapshots if a write fails rather than silently discarding them.
+
+Stock PServer accepted the original 365-character compound Stop request without executing its restoration acknowledgement. This stopped automatic connection handling after detach on the physical Odin. A separate bundled stop helper now performs restoration and writes the unique acknowledgement; the Binder request only launches that helper. It also works with a guard left by an earlier APK. Protection rearms only after successful confirmation, and pending restoration snapshots still block a new session.
 
 The global `usbcore.autosuspend` setting is untouched. Runtime USB suspension and system sleep are different mechanisms. The app does not request an Android CPU wake lock, inject touches, alter launcher configuration, or request internet access.
 
@@ -63,7 +69,7 @@ adb -s YOUR_ODIN_SERIAL shell am start -n nl.retroid.touchguard/.MainActivity
 
 The app remains `nl.retroid.touchguard` so OdinDuo can update the original installation. Version **1.0.0** adds automatic connection sessions, opted-in boot/update startup, a redesigned dashboard, theme selection, adaptive/themed launcher icons and diagnostics sharing. The device-scoped shell power guard is unchanged.
 
-The canonical guard in `tools/pserver-power-guard.sh` is bundled as a generated resource during the build. Generated resources, APKs, device captures and signing keys are excluded from Git. `./app/build.sh` produces a debug APK for development. To build the non-debuggable release:
+The canonical guard in `tools/pserver-power-guard.sh` and its stop helper in `tools/pserver-power-stop.sh` are bundled as generated resources during the build. Generated resources, APKs, device captures and signing keys are excluded from Git. `./app/build.sh` produces a debug APK for development. To build the non-debuggable release:
 
 ```sh
 ./app/build.sh release
@@ -80,7 +86,7 @@ For an existing installation, preserve its signing key when building updates. Th
 ./gradlew :app:lintRelease
 ```
 
-The checks verify process identity parsing, rejection of truncated records, shell argument quoting without command substitution, USB descriptor/target validation, and log parsing that honours the latest power state and gives restoration failures precedence. The shell integration test runs the real guard against temporary fake proc/USB files: process loss preserves power settings, a reused PID is rejected, a new service adopts the session without resetting USB, explicit Stop restores promptly, and an expired restart grace restores the original settings. It never writes host or connected-device power settings. Emulator checks cannot establish that physical Retroid touch survives sleep.
+The checks verify process identity parsing, rejection of truncated records, shell argument quoting without command substitution, USB descriptor/target validation, and log parsing that honours the latest power state and gives restoration failures precedence. The shell integration test runs the real guard against temporary fake proc/USB files: process loss preserves power settings, a reused PID is rejected, a new service adopts the session without resetting USB, explicit Stop restores promptly, and an expired restart grace restores the original settings. It also checks detach acknowledgements across three connection leases, rejects invalid acknowledgement tokens and ensures pending snapshots cannot be acknowledged as successful. It never writes host or connected-device power settings. Emulator checks cannot establish that physical Retroid touch survives sleep.
 
 Physical validation of the workaround recorded three sleep/wake pairs with genuine raw touch events after each wake. The tester reported five uninterrupted cycles in that run. The USB host was active in all 69 recorded samples; the Retroid device was active in 68 samples and briefly suspended in one. The guard corrected six firmware overwrites of the touchscreen's power setting.
 
@@ -88,7 +94,9 @@ The self-contained 0.3 app was subsequently confirmed working by the tester. Sta
 
 Version 0.4.0 was installed as an in-place update on the same Odin. Its English UI was checked in portrait and landscape, in light and dark mode. Start reached the waiting state; Stop ended the worker and watchdog with the USB controllers still at their original `auto` settings while no RDS was connected. These results cover the tested device and firmware; long-duration reliability and battery use remain unmeasured.
 
-Version 1.0 validation additionally exercised the signed, non-debuggable APK in an isolated Android 15 emulator with a test-only PServer adapter and temporary fake USB files. Three automatic detach/restore/reconnect cycles passed. Closing recents retained protection; killing the service adopted the same existing guard. App replacement resumed automatic mode. A boot-completed receiver invocation and an immediate stop/restart restoration check passed; a complete physical Odin reboot remains unverified. Both themes and orientations were inspected. These simulated USB checks establish lifecycle and restoration behaviour, not physical touch or battery performance. The Odin was not connected during the 1.0 release checks.
+The initial 1.0 build was checked in an isolated Android 15 emulator with a test-only PServer adapter and temporary fake USB files. Three automatic detach/restore/reconnect cycles passed. Closing recents retained protection; killing the service adopted the same existing guard. App replacement resumed automatic mode. A boot-completed receiver invocation and an immediate stop/restart restoration check passed; a complete physical Odin reboot remains unverified. Both themes and orientations were inspected. These simulated checks did not reproduce the stock vendor’s failure to execute the longer Stop command; that failure was subsequently reproduced on the physical Odin and addressed in the updated 1.0.0 APK.
+
+The updated build (version code 7) passed the build, release lint (zero errors) and regression checks, including the stop helper’s success, invalid-token and pending-restoration cases. It installed over 1.0.0 on the physical Odin with the same certificate, resumed the enabled automatic mode after app replacement, confirmed Stop through the stock service and returned to a clean waiting session. The brightness investigation used the connected physical Retroid display; the matching guide and its layout were inspected in an Android 15 emulator. A new physical three-connection touch test was requested separately; its result is not included in these measurements.
 
 ## Diagnostics and removal
 
@@ -126,5 +134,6 @@ The diagnostic logger and previous experimental console helpers remain in `tools
 - [Android service restart and task-removal behaviour](https://developer.android.com/reference/android/app/Service#START_STICKY) and [Android user-initiated stopping](https://developer.android.com/develop/background-work/services/fgs/handle-user-stopping) explain the lifecycle used in 0.5.0.
 - [Android special-use foreground services](https://developer.android.com/develop/background-work/services/fgs/service-types#special-use) and [dynamic colours](https://developer.android.com/develop/ui/views/theming/dynamic-colors) describe the Android APIs used by the app.
 - [Material Components for Android](https://github.com/material-components/material-components-android/releases/tag/1.14.0) supplies the Material 3 interface.
+- [AOSP LocalDisplayAdapter](https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/services/core/java/com/android/server/display/LocalDisplayAdapter.java) implements the external display backlight adapter inspected during the brightness investigation.
 
 Independent community project; not affiliated with AYN or Retroid. Original OdinDuo source is available under the [MIT licence](LICENSE). External projects and bundled dependencies retain their respective licences; see [NOTICE.md](NOTICE.md).

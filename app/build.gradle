@@ -8,7 +8,7 @@ android {
         applicationId 'nl.retroid.touchguard'
         minSdk 33
         targetSdk 35
-        versionCode 6
+        versionCode 7
         versionName '1.0.0'
     }
     sourceSets {
@@ -55,9 +55,9 @@ android {
 }
 
 def guardResources = tasks.register('generateGuardResources', Copy) {
-    from(rootProject.file('tools/pserver-power-guard.sh'))
+    from(rootProject.file('tools/pserver-power-guard.sh'), rootProject.file('tools/pserver-power-stop.sh'))
     into(layout.buildDirectory.dir('generated/guard-res/raw'))
-    rename { 'power_guard.sh' }
+    rename { name -> name == 'pserver-power-guard.sh' ? 'power_guard.sh' : 'power_stop.sh' }
 }
 tasks.named('preBuild').configure { dependsOn guardResources }
 

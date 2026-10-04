@@ -20,6 +20,11 @@
     <string name="automatic_paused">On · tap Start protection to resume</string>
     <string name="appearance">Appearance</string>
     <string name="appearance_title">Make it yours</string>
+    <string name="brightness">Screen brightness</string>
+    <string name="brightness_title">Match your screens</string>
+    <string name="brightness_body">The Retroid Dual Screen uses its own brightness buttons. Automatic brightness sync is unavailable on the tested Odin 3 setup.\n\nShow the same image on both screens. Adjust the Odin brightness in Quick Settings or Display settings, then use the Retroid screen’s brightness buttons to match it by eye.\n\nFor a consistent match, turn off adaptive brightness on the Odin. The screens have different brightness ranges, so equal slider percentages do not mean equal brightness.</string>
+    <string name="display_settings">Open display settings</string>
+    <string name="display_settings_unavailable">Open Display settings from Android Settings.</string>
     <string name="theme_system">Use device theme</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
