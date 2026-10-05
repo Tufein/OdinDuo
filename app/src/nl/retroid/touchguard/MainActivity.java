@@ -1,10 +1,13 @@
 package nl.retroid.touchguard;
 
 import android.Manifest;
+import android.app.StatusBarManager;
+import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
+import android.graphics.drawable.Icon;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -84,9 +87,12 @@ public final class MainActivity extends AppCompatActivity {
         findViewById(R.id.appearance).setOnClickListener(view -> chooseAppearance());
         findViewById(R.id.brightness).setOnClickListener(view -> showBrightnessHelp());
         findViewById(R.id.help).setOnClickListener(view -> showHelp());
+        findViewById(R.id.notification_hint).setOnClickListener(view -> openAppSettings());
         refreshStatus();
 
-        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                && !getSharedPreferences("appearance", MODE_PRIVATE).getBoolean("notifications_asked", false)) {
+            getSharedPreferences("appearance", MODE_PRIVATE).edit().putBoolean("notifications_asked", true).apply();
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
         }
         handleIntent(getIntent());
@@ -107,6 +113,7 @@ public final class MainActivity extends AppCompatActivity {
         switch (state) {
             case "waiting": titleResource = R.string.title_waiting; chipResource = R.string.chip_waiting; break;
             case "starting": titleResource = R.string.title_starting; chipResource = R.string.chip_waiting; break;
+            case "recovering": titleResource = R.string.title_recovering; chipResource = R.string.chip_recovering; break;
             case "active": titleResource = R.string.title_active; chipResource = R.string.chip_active; break;
             case "stopping": titleResource = R.string.title_stopping; chipResource = R.string.chip_waiting; break;
             case "error": titleResource = R.string.title_error; chipResource = R.string.chip_error; break;
@@ -218,7 +225,42 @@ public final class MainActivity extends AppCompatActivity {
     private void showHelp() {
         new MaterialAlertDialogBuilder(this).setTitle(R.string.help_title).setMessage(R.string.help_body)
                 .setPositiveButton(android.R.string.ok, null)
+                .setNegativeButton(R.string.setup_title, (dialog, which) -> showSetup())
                 .setNeutralButton(R.string.share_diagnostics, (dialog, which) -> shareDiagnostics()).show();
+    }
+
+    private void showSetup() {
+        new MaterialAlertDialogBuilder(this).setTitle(R.string.setup_title).setMessage(SetupReport.read(this))
+                .setPositiveButton(R.string.tile_add, (dialog, which) -> addQuickTile())
+                .setNeutralButton(R.string.app_settings, (dialog, which) -> openAppSettings())
+                .setNegativeButton(android.R.string.cancel, null).show();
+    }
+
+    private void openAppSettings() {
+        try {
+            startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    android.net.Uri.parse("package:" + getPackageName())));
+        } catch (android.content.ActivityNotFoundException exception) {
+            Toast.makeText(this, R.string.app_settings_unavailable, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void addQuickTile() {
+        try {
+            getSystemService(StatusBarManager.class).requestAddTileService(
+                    new ComponentName(this, ProtectionTileService.class), getString(R.string.app_name),
+                    Icon.createWithResource(this, R.drawable.ic_touch), getMainExecutor(), result -> {
+                        if (result == StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED
+                                || result == StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED) {
+                            Toast.makeText(this, R.string.tile_added, Toast.LENGTH_LONG).show();
+                        } else if (result != StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_NOT_ADDED) {
+                            Toast.makeText(this, R.string.tile_add_manual, Toast.LENGTH_LONG).show();
+                        }
+                    });
+        } catch (RuntimeException exception) {
+            EventLog.write(this, "Quick Settings tile request failed " + exception);
+            Toast.makeText(this, R.string.tile_add_manual, Toast.LENGTH_LONG).show();
+        }
     }
 
     private void shareDiagnostics() {
@@ -228,6 +270,7 @@ public final class MainActivity extends AppCompatActivity {
                     + "\nDevice: " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL
                     + "\nAuto protect: " + GuardPreferences.automatic(this) + "\nState: " + snapshot.state
                     + "\n" + snapshot.text + "\n\nPower guard\n" + VendorBridge.readLog(this);
+            report += "\n\nSetup checks\n" + SetupReport.read(this);
             File events = new File(getFilesDir(), "guard-events.txt");
             if (events.isFile()) {
                 try (java.io.RandomAccessFile input = new java.io.RandomAccessFile(events, "r")) {

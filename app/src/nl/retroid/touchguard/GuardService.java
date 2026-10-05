@@ -27,7 +27,7 @@ public final class GuardService extends Service {
     private volatile boolean ending;
     private boolean started;
     private boolean automatic;
-    private long launchTime;
+    private final GuardHealth health = new GuardHealth();
     private String latestStatus = "";
     private String finalStatus;
     private String finalState = "idle";
@@ -37,13 +37,42 @@ public final class GuardService extends Service {
             if (stopped || ending) return;
             try {
                 String log = VendorBridge.readLog(GuardService.this);
-                switch (GuardLogState.read(log)) {
+                GuardLogState.State observation = GuardLogState.read(log);
+                // A historical successful power sample cannot prove the root helper is alive.
+                if (observation != GuardLogState.State.ERROR && observation != GuardLogState.State.STOPPED) {
+                    GuardHealth.State heartbeat = health.observe(VendorBridge.guardAlive(GuardService.this),
+                            SystemClock.uptimeMillis());
+                    if (heartbeat == GuardHealth.State.LOST) {
+                        if (!automatic || !health.allowRecovery(SystemClock.uptimeMillis())) {
+                            finish(getString(R.string.status_helper_lost), "error");
+                            return;
+                        }
+                        status("recovering", R.string.status_recovering);
+                        EventLog.write(GuardService.this, "helper heartbeat lost; confirming restoration before recovery");
+                        VendorBridge.stop(GuardService.this);
+                        if (stopped || ending) return;
+                        launchGuard();
+                        return;
+                    }
+                    if (heartbeat != GuardHealth.State.HEALTHY) {
+                        status(heartbeat == GuardHealth.State.STARTING ? "starting" : "recovering",
+                                heartbeat == GuardHealth.State.STARTING ? R.string.status_starting : R.string.status_recovering);
+                        worker.postDelayed(this, 1000);
+                        return;
+                    }
+                }
+                switch (observation) {
                     case ERROR:
                         finish(getString(R.string.status_guard_error), "error");
                         return;
                     case STOPPED:
                         if (!automatic) {
                             finish(getString(R.string.status_detached), "idle");
+                            return;
+                        }
+                        if (!log.contains("RDS detached/replaced; restoring")
+                                && !health.allowRecovery(SystemClock.uptimeMillis())) {
+                            finish(getString(R.string.status_helper_lost), "error");
                             return;
                         }
                         // Wait for complete restoration before starting the next connection lease.
@@ -60,10 +89,11 @@ public final class GuardService extends Service {
                         status("waiting", automatic ? R.string.status_auto_waiting : R.string.status_waiting);
                         break;
                     case EMPTY:
-                        if (SystemClock.elapsedRealtime() - launchTime > 15000) {
+                        if (health.startupExpired(SystemClock.uptimeMillis())) {
                             finish(getString(R.string.status_launch_timeout), "error");
                             return;
                         }
+                        status("starting", R.string.status_starting);
                         break;
                 }
                 worker.postDelayed(this, 1000);
@@ -170,7 +200,7 @@ public final class GuardService extends Service {
     private void launchGuard() throws Exception {
         if (stopped || ending) return;
         VendorBridge.start(this);
-        launchTime = SystemClock.elapsedRealtime();
+        health.launched(SystemClock.uptimeMillis());
         worker.postDelayed(poll, 1000);
     }
 

@@ -153,8 +153,36 @@ with tempfile.TemporaryDirectory(prefix='odinduo-guard-') as directory:
                 if process.poll() is None:
                     (app / 'guard-enabled').unlink(missing_ok=True)
                     process.wait(timeout=5)
-    # A successful shell exit alone must never acknowledge outstanding restoration snapshots.
+    # Firmware can reject a restore even when the sysfs write reports success.
+    # Inject the readback fault through cat while running the real bundled stop path.
     state = root / 'data/local/tmp/retroid-power-guard-state'
+    state.mkdir()
+    target = controls[0]
+    target.write_text('on\n')
+    (state / 'count').write_text('1\n')
+    (state / 'saved-0').write_text(f'{target}\nauto\nparent\n')
+    fault = root / 'reject-restore'
+    fault.touch()
+    (binaries / 'cat').write_text(
+        '#!/bin/sh\n'
+        f'if [ -f "{fault}" ] && [ "$1" = "{target}" ]; then echo on; exit 0; fi\n'
+        'exec /bin/cat "$@"\n')
+    (binaries / 'cat').chmod(0o755)
+    rejected_token = 'b' * 32
+    rejected = subprocess.run(['/bin/sh', str(stop_script), rejected_token], env=env,
+                              capture_output=True, text=True, timeout=5)
+    assert rejected.returncode == 1, 'Incorrect restoration readback was acknowledged'
+    assert state.is_dir() and (state / 'saved-0').is_file(), 'Readback failure discarded snapshots'
+    assert 'RESTORE FAILED readback' in log.read_text(), 'Readback failure was not recorded'
+    assert f'STOP acknowledged {rejected_token} result=1' in log.read_text()
+    fault.unlink()
+    retried_token = 'c' * 32
+    retried = subprocess.run(['/bin/sh', str(stop_script), retried_token], env=env,
+                             capture_output=True, text=True, timeout=5)
+    assert retried.returncode == 0 and not state.exists(), 'Confirmed restoration could not be retried'
+    assert target.read_text().strip() == 'auto', 'Retry lost the original setting'
+    assert f'STOP acknowledged {retried_token} result=0' in log.read_text()
+    # A successful shell exit alone must never acknowledge outstanding restoration snapshots.
     state.mkdir()
     (state / 'saved-0').write_text('pending restoration\n')
     script.write_text('#!/bin/sh\nexit 0\n')
@@ -168,4 +196,4 @@ with tempfile.TemporaryDirectory(prefix='odinduo-guard-') as directory:
     invalid = subprocess.run(['/bin/sh', str(stop_script), 'invalid;token'], env=env,
                              capture_output=True, text=True, timeout=5)
     assert invalid.returncode == 2 and log.read_text() == previous_log, 'Invalid token was accepted'
-    print('Shell lifecycle checks passed: process loss, PID reuse, adoption, Stop, grace expiry, 3 reconnects and restoration acknowledgements')
+    print('Shell lifecycle checks passed: process loss, PID reuse, adoption, Stop, grace expiry, 3 reconnects, restore readback failure/retry and acknowledgements')

@@ -10,6 +10,8 @@ OdinDuo applies a temporary USB power-management workaround through the stock AY
 
 Install [OdinDuo 1.0.0](https://github.com/Tufein/OdinDuo/releases/tag/v1.0.0) from the release assets. The signed release APK can update the earlier OdinDuo installation in place; it keeps the same package and signing certificate. A SHA-256 checksum is included. The 1.0 APK is **not debuggable**. Private signing keys are never published.
 
+[OdinDuo 1.1.0-beta.1](https://github.com/Tufein/OdinDuo/releases/tag/v1.1.0-beta.1) adds helper health checks, safer restoration, a Quick Settings tile and setup checks. This is a **prerelease for testing**; 1.0.0 remains the stable release. The new changes have not yet been checked with physical Retroid touch input. It uses the same signing certificate and package for in-place updates. Returning from the beta to 1.0.0 may require uninstalling the beta because Android rejects version-code downgrades; Stop protection before uninstalling.
+
 ## Use
 
 1. Open **OdinDuo** and turn on **Auto protect**, or tap **Start protection** for a single session.
@@ -22,6 +24,10 @@ Install [OdinDuo 1.0.0](https://github.com/Tufein/OdinDuo/releases/tag/v1.0.0) f
 Android may ask for notification permission. Allow it to see background status and the Stop action. Android’s **Force stop** or **Active apps → Stop** can still end the app; reopen OdinDuo to resume. Its own Stop button confirms immediate restoration; after unexpected process loss the helper allows a bounded restart grace before restoring.
 
 **Appearance** lets you choose system, light or dark mode. **Help & diagnostics → Share diagnostics** exports only the app’s bounded logs and basic device/version information through Android’s share sheet. Nothing is sent automatically; the app has no internet permission.
+
+In **1.1 beta**, open **Help & diagnostics → Check setup → Add quick tile** to add OdinDuo to Android Quick Settings. Tapping the tile when off enables Auto protect; tapping it while protection is running stops protection and turns Auto protect off. Its subtitle follows the actual protection state. Long-press opens OdinDuo. Locked devices require unlocking before a tap changes protection. The tile only polls while the Quick Settings panel is open.
+
+**Check setup** reports the stock AYN service, primary Android user, notification permission, Android background restrictions, battery optimisation and Auto protect setting. **App settings** opens Android’s per-app settings so you can adjust restrictions yourself. These checks also appear in shared diagnostics. The helper paths support the primary Android user; other profiles cannot start protection. Notification permission is requested once rather than again after a theme change.
 
 **Screen brightness → Match your screens** explains how to match brightness manually and opens Android Display settings. Show the same image on both screens, adjust the Odin brightness and use the Retroid display’s hardware buttons to match by eye. Disable adaptive brightness on the Odin if you want the match to stay consistent. Equal slider percentages do not imply equal light output from different panels.
 
@@ -45,6 +51,10 @@ The guard:
 - Ties the session to the foreground service’s PID, process start time, UID, package name and a unique marker. The service runs in its own `:guard` process and uses Android’s `START_STICKY` restart policy. Atomic status snapshots let the reopened UI display the existing session without starting a duplicate guard.
 - Allows up to 60 seconds for Android to restart an unexpectedly killed service process; the restarted service adopts the existing guard and keeps the saved USB settings. If no valid owner returns, the guard restores settings and exits. Explicit Stop bypasses this grace period. A separate watchdog handles unexpected worker termination.
 - Retains restoration snapshots if a write fails rather than silently discarding them.
+
+The 1.1 beta checks the helper’s session heartbeat before reporting protection. If it disappears, the UI shows **Recovering** rather than a historical **Protected** sample. After a grace period, Auto protect confirms USB restoration before relaunching; manual sessions end with an error. Unexpected helper exits are limited to two recovery attempts per 60 seconds of awake uptime. Normal display detach/reconnect is not counted as a failure. The grace period uses Android uptime, excluding deep sleep, so a stale heartbeat immediately after waking does not trigger a restart. Persistent failure or unconfirmed restoration stops the session and leaves diagnostics available.
+
+Restoration now verifies that each written value can be read back unchanged. Read failures, invalid snapshots and mismatched readback retain the snapshots and prevent a successful Stop acknowledgement or new session.
 
 Stock PServer accepted the original 365-character compound Stop request without executing its restoration acknowledgement. This stopped automatic connection handling after detach on the physical Odin. A separate bundled stop helper now performs restoration and writes the unique acknowledgement; the Binder request only launches that helper. It also works with a guard left by an earlier APK. Protection rearms only after successful confirmation, and pending restoration snapshots still block a new session.
 
@@ -100,6 +110,8 @@ The updated build (version code 7) passed the build, release lint (zero errors) 
 
 ## Diagnostics and removal
 
+The 1.1 beta adds regression checks for startup timeout, silent helper loss, sleep grace and bounded recovery. The real-shell integration test injects a restoration readback mismatch, checks that Stop fails while preserving snapshots, then confirms a successful retry. See [the beta release notes](docs/releases/1.1.0-beta.1.md) for Android checks and remaining physical validation.
+
 For the published 1.0 APK, use **Help & diagnostics → Share diagnostics**. `adb shell run-as` is intentionally unavailable in the non-debuggable release. Diagnostics omit device serial numbers, account information and installed-app lists; session tokens are redacted.
 
 For developer builds, use the Odin’s explicit ADB serial, especially if other devices or emulators are connected:
@@ -133,6 +145,7 @@ The diagnostic logger and previous experimental console helpers remain in `tools
 - [AOSP UsbHostManager](https://android.googlesource.com/platform/frameworks/base/+/master/services/usb/java/com/android/server/usb/UsbHostManager.java) documents boot-HID filtering.
 - [Android service restart and task-removal behaviour](https://developer.android.com/reference/android/app/Service#START_STICKY) and [Android user-initiated stopping](https://developer.android.com/develop/background-work/services/fgs/handle-user-stopping) explain the lifecycle used in 0.5.0.
 - [Android special-use foreground services](https://developer.android.com/develop/background-work/services/fgs/service-types#special-use) and [dynamic colours](https://developer.android.com/develop/ui/views/theming/dynamic-colors) describe the Android APIs used by the app.
+- [Android Quick Settings tiles](https://developer.android.com/develop/ui/views/quicksettings-tiles) describes the protected system tile and user-controlled add flow used in 1.1 beta.
 - [Material Components for Android](https://github.com/material-components/material-components-android/releases/tag/1.14.0) supplies the Material 3 interface.
 - [AOSP LocalDisplayAdapter](https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/services/core/java/com/android/server/display/LocalDisplayAdapter.java) implements the external display backlight adapter inspected during the brightness investigation.
 

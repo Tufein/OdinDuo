@@ -81,18 +81,24 @@ restore() {
     entry="$state/saved-$remaining"
     [ -f "$entry" ] || continue
     { IFS= read -r control; IFS= read -r original; IFS= read -r identity; } < "$entry"
-    valid_control "$control" || { log "RESTORE rejected unexpected path"; continue; }
+    valid_control "$control" || { log "RESTORE rejected unexpected path"; restore_failed=1; continue; }
     [ -f "$control" ] || continue
     if [ "$identity" != parent ]; then
       directory=${control%/power/control}
       current_identity="$(cat "$directory/idVendor" 2>/dev/null):$(cat "$directory/idProduct" 2>/dev/null):$(cat "$directory/devnum" 2>/dev/null)"
       [ "$current_identity" = "$identity" ] || { log "RESTORE skip replaced device $directory"; continue; }
     fi
-    current=$(cat "$control" 2>/dev/null)
+    current=$(cat "$control" 2>/dev/null) || { log "RESTORE FAILED reading $control"; restore_failed=1; continue; }
     [ "$current" = on ] || { log "RESTORE skip changed value $control=$current"; continue; }
-    case "$original" in on|auto) ;; *) log "RESTORE invalid original"; continue ;; esac
+    case "$original" in on|auto) ;; *) log "RESTORE FAILED invalid original"; restore_failed=1; continue ;; esac
     if printf '%s\n' "$original" > "$control"; then
-      log "RESTORE $control=$original readback=$(cat "$control")"
+      restored=$(cat "$control" 2>/dev/null)
+      if [ "$restored" = "$original" ]; then
+        log "RESTORE $control=$original readback=$restored"
+      else
+        log "RESTORE FAILED readback $control expected=$original actual=$restored"
+        restore_failed=1
+      fi
     else
       log "RESTORE FAILED $control"
       restore_failed=1

@@ -27,6 +27,8 @@ final class VendorBridge {
     }
 
     static boolean available() {
+        // The device-scoped shell helpers use the primary Android user's app directory.
+        if (Process.myUid() >= 100000) return false;
         try { service(); return true; } catch (Exception exception) { return false; }
     }
 
@@ -74,6 +76,7 @@ final class VendorBridge {
     }
 
     static void start(Context context) throws Exception {
+        if (Process.myUid() >= 100000) throw new IllegalStateException("Use OdinDuo in the primary Android user profile.");
         if (guardAlive(context)) {
             String token = new String(Files.readAllBytes(new File(context.getFilesDir(), "guard-enabled").toPath()), StandardCharsets.UTF_8).trim();
             writeOwner(context, token);

@@ -7,6 +7,7 @@
     <string name="title_starting">Getting connected…</string>
     <string name="title_active">Keep playing.</string>
     <string name="title_stopping">Wrapping up…</string>
+    <string name="title_recovering">Getting back on track…</string>
     <string name="title_error">Needs attention.</string>
     <string name="device_connected">Retroid display connected</string>
     <string name="device_disconnected">Waiting for your Retroid display</string>
@@ -30,19 +31,7 @@
     <string name="theme_dark">Dark</string>
     <string name="help">Help &amp; diagnostics</string>
     <string name="help_title">Made for your duo.</string>
-    <string name="help_body">1. Start protection or turn on Auto protect.
-2. Connect your Retroid Dual Screen.
-3. Wait for Protected, then return to your launcher.
-
-Protection keeps running when you swipe OdinDuo away from recent apps and during sleep.
-
-Auto protect stays ready between connections and resumes after a restart. Stop protection turns Auto protect off too.
-
-Keeping the connected USB display awake may use extra battery. Unplugging or stopping restores normal USB power management.
-
-After Android’s Force stop or its Active apps Stop, open OdinDuo again to resume.
-
-Built for AYN Odin 3 and Retroid Dual Screen. No root installation needed.</string>
+    <string name="help_body">1. Start protection or turn on Auto protect.\n2. Connect your Retroid Dual Screen.\n3. Wait for Protected, then return to your launcher.\n\nProtection keeps running when you swipe OdinDuo away from recent apps and during sleep.\n\nAuto protect stays ready between connections and resumes after a restart. Stop protection turns Auto protect off too.\n\nUse Check setup to add the OdinDuo Quick Settings tile. Tap the tile to enable Auto protect or stop protection without opening the app.\n\nKeeping the connected USB display awake may use extra battery. Unplugging or stopping restores normal USB power management.\n\nAfter Android’s Force stop or its Active apps Stop, open OdinDuo again to resume.\n\nBuilt for AYN Odin 3 and Retroid Dual Screen. No root installation needed.</string>
     <string name="share_diagnostics">Share diagnostics</string>
     <string name="share_chooser">Share OdinDuo diagnostics</string>
     <string name="share_error">Could not prepare diagnostics. Please try again.</string>
@@ -53,6 +42,7 @@ Built for AYN Odin 3 and Retroid Dual Screen. No root installation needed.</stri
     <string name="chip_waiting">Ready</string>
     <string name="chip_active">Protected</string>
     <string name="chip_error">Attention</string>
+    <string name="chip_recovering">Recovering</string>
     <string name="status_idle">A little protection for your second screen. Start a session or enable Auto protect.</string>
     <string name="status_restarted">Protection is not running. Start a new session when you are ready.</string>
     <string name="status_stopped">Protection stopped. Normal USB power management has been restored.</string>
@@ -63,7 +53,7 @@ Built for AYN Odin 3 and Retroid Dual Screen. No root installation needed.</stri
     <string name="status_waiting">Your session is ready. Connect your Retroid Dual Screen.</string>
     <string name="status_auto_waiting">Auto protect is ready. Plug in your display and protection starts automatically.</string>
     <string name="status_launch_timeout">Protection did not start. Open the app and try again.</string>
-    <string name="status_log_error">Protection stopped because its log could not be read.</string>
+    <string name="status_log_error">Protection stopped after a background check failed. Share diagnostics from Help.</string>
     <string name="status_preparing">Preparing touch protection…</string>
     <string name="status_fgs_error">Android could not start background protection.</string>
     <string name="status_starting">Starting touch protection…</string>
@@ -72,7 +62,37 @@ Built for AYN Odin 3 and Retroid Dual Screen. No root installation needed.</stri
     <string name="status_restore_error">Power settings could not be fully restored. Share diagnostics from Help.</string>
     <string name="status_stop_error">Stopping could not be confirmed. Share diagnostics from Help.</string>
     <string name="status_settings_error">Could not save Auto protect. Please try again.</string>
+    <string name="status_recovering">Checking the background helper. Auto protect can restore the session if needed.</string>
+    <string name="status_helper_lost">The background helper stopped responding. Protection stopped safely; check setup or share diagnostics from Help.</string>
     <string name="status_vendor_unavailable">The required AYN service is unavailable. OdinDuo is made for the AYN Odin 3.</string>
     <string name="notification_channel">OdinDuo touch protection</string>
     <string name="notification_stop">Stop</string>
+    <string name="tile_off">Off</string>
+    <string name="tile_waiting">Waiting for display</string>
+    <string name="tile_starting">Starting…</string>
+    <string name="tile_stopping">Stopping…</string>
+    <string name="tile_unavailable">AYN service unavailable</string>
+    <string name="tile_action_failed">Could not change protection. Open OdinDuo to try again.</string>
+    <string name="tile_add">Add quick tile</string>
+    <string name="tile_added">OdinDuo is in Quick Settings. Tap to enable Auto protect or stop protection.</string>
+    <string name="tile_add_manual">Open Quick Settings, tap Edit, and add the OdinDuo tile.</string>
+    <string name="setup_title">Check setup</string>
+    <string name="setup_device">%1$s %2$s · Android %3$s</string>
+    <string name="setup_vendor">AYN service: %1$s</string>
+    <string name="setup_available">Available</string>
+    <string name="setup_unavailable">Unavailable</string>
+    <string name="setup_primary">Android profile: Primary user</string>
+    <string name="setup_secondary">Android profile: Use the primary user to run protection</string>
+    <string name="setup_notifications">Notifications: %1$s</string>
+    <string name="setup_allowed">Allowed</string>
+    <string name="setup_on">On</string>
+    <string name="setup_off">Off</string>
+    <string name="setup_background_restricted">Background use: Restricted by Android</string>
+    <string name="setup_background_allowed">Background use: Not restricted by Android</string>
+    <string name="setup_battery_unrestricted">Battery optimisation: Exempt</string>
+    <string name="setup_battery_optimized">Battery optimisation: Managed by Android</string>
+    <string name="setup_auto">Auto protect: %1$s</string>
+    <string name="setup_guidance">If background protection stops, open App settings and check battery restrictions. Allow notifications for the status and Stop control. Firmware may apply additional background limits.</string>
+    <string name="app_settings">App settings</string>
+    <string name="app_settings_unavailable">Open Android Settings → Apps → OdinDuo.</string>
 </resources>
