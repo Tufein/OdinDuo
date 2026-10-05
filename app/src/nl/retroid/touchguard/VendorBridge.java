@@ -109,6 +109,9 @@ final class VendorBridge {
     }
 
     static void stop(Context context) throws Exception {
+        // Helpers address user 0. An unsupported profile must not stop that user's session,
+        // even if an older installation left a copied script in this profile's directory.
+        if (Process.myUid() >= 100000) return;
         // The daemon also watches this marker: stopping remains effective if Binder is unavailable.
         context.deleteFile("guard-enabled");
         new AtomicFile(new File(context.getFilesDir(), "guard-owner")).delete();
