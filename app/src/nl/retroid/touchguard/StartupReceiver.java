@@ -10,6 +10,7 @@ public final class StartupReceiver extends BroadcastReceiver {
         String action = intent.getAction();
         if (!Intent.ACTION_BOOT_COMPLETED.equals(action)
                 && !Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)) return;
+        ProtectionTileService.refresh(context);
         if (!GuardPreferences.automatic(context)) return;
         try {
             context.startForegroundService(new Intent(context, GuardService.class));

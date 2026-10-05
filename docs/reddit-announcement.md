@@ -13,15 +13,18 @@ I made **OdinDuo**, a free, open-source app that keeps the Retroid touchscreen�
 
 **Stable download:** [OdinDuo 1.0.0](https://github.com/Tufein/OdinDuo/releases/tag/v1.0.0)
 
-Thanks for all the feedback and support so far. I’ve also prepared **1.1.0-beta.1** with some useful fixes and additions:
+Thanks for all the feedback and support so far. I’ve also prepared **1.1.0-beta.2** with some useful fixes and additions:
 
 - Checks whether the background helper is still responding, so an old successful reading cannot leave the app showing “Protected”. Auto protect can recover after confirmed USB restoration, with a limit on repeated attempts.
 - Verifies the original power settings after restoring them and keeps the recovery data if restoration fails.
 - Adds an Android Quick Settings tile to turn Auto protect on or stop protection without opening the app.
 - Adds **Check setup** for the AYN service, notifications and Android background restrictions. These checks are included in diagnostics too.
+- Keeps a healthy session running even when repeated firmware activity fills the log.
+- Adds a failure notification with **Retry protection**. A retry confirms the previous USB restoration before starting a fresh session.
+- Keeps the Quick Settings tile up to date when protection changes while the panel is closed.
 - Avoids asking for notification permission again when you change the theme.
 
-**Optional beta download:** [OdinDuo 1.1.0-beta.1](https://github.com/Tufein/OdinDuo/releases/tag/v1.1.0-beta.1). The new changes passed software and emulator checks; physical sleep/wake testing for this beta is still pending. Use 1.0.0 if you prefer the stable version.
+**Optional beta download:** [OdinDuo 1.1.0-beta.2](https://github.com/Tufein/OdinDuo/releases/tag/v1.1.0-beta.2). The new changes passed software and emulator checks; physical sleep/wake testing for this beta is still pending. Use 1.0.0 if you prefer the stable version. After updating from an earlier build, Stop protection once and re-enable Auto protect to load the updated helper.
 
 The workaround was tested on **AYN Odin 3, Android 15, firmware 1.0.0.187**. It uses the built-in AYN service: no Magisk, bootloader unlock or firmware flash needed on that setup. Other devices and firmware versions are unverified. Start protection while touch still works; it is not a guaranteed way to recover touch after it has already failed. Keeping USB awake may use extra battery, which I haven’t measured yet.
 

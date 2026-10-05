@@ -1,8 +1,8 @@
 package nl.retroid.touchguard;
 
 import android.content.Intent;
-import android.os.Handler;
-import android.os.Looper;
+import android.content.Context;
+import android.content.ComponentName;
 import android.os.SystemClock;
 import android.service.quicksettings.Tile;
 import android.service.quicksettings.TileService;
@@ -10,28 +10,28 @@ import android.widget.Toast;
 
 /** SystemUI controls protection without requiring the dashboard to stay open. */
 public final class ProtectionTileService extends TileService {
-    private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean listening;
     private Boolean pendingRunning;
     private long requestedAt;
 
-    private final Runnable refresh = new Runnable() {
-        @Override public void run() {
-            updateTile();
-            if (listening) handler.postDelayed(this, 1000);
+    static void refresh(Context context) {
+        try {
+            TileService.requestListeningState(context, new ComponentName(context, ProtectionTileService.class));
+        } catch (RuntimeException exception) {
+            android.util.Log.w("RetroidTouchGuard", "Tile refresh deferred", exception);
         }
-    };
+    }
 
     @Override public void onStartListening() {
         listening = true;
-        handler.removeCallbacks(refresh);
-        handler.post(refresh);
+        updateTile();
     }
 
     @Override public void onStopListening() {
         listening = false;
-        handler.removeCallbacks(refresh);
     }
+
+    @Override public void onTileAdded() { refresh(this); }
 
     @Override public void onClick() {
         if (isLocked()) unlockAndRun(this::toggleProtection);
@@ -70,6 +70,7 @@ public final class ProtectionTileService extends TileService {
         GuardStatusStore.Status snapshot = GuardStatusStore.read(this);
         if (pendingRunning != null && (snapshot.running == pendingRunning
                 || SystemClock.uptimeMillis() - requestedAt >= 8000)) pendingRunning = null;
+        if (!listening) return;
         Tile tile = getQsTile();
         if (tile == null) return;
         boolean unavailable = !snapshot.running && !VendorBridge.available();
@@ -97,7 +98,6 @@ public final class ProtectionTileService extends TileService {
 
     @Override public void onDestroy() {
         listening = false;
-        handler.removeCallbacksAndMessages(null);
         super.onDestroy();
     }
 }

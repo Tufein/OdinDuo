@@ -36,6 +36,7 @@ final class GuardStatusStore {
             output = file.startWrite();
             output.write(value.toString().getBytes(StandardCharsets.UTF_8));
             file.finishWrite(output);
+            ProtectionTileService.refresh(context);
         } catch (Exception exception) {
             if (output != null) file.failWrite(output);
             EventLog.write(context, "status snapshot failed " + exception);

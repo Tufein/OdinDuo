@@ -105,6 +105,7 @@ public final class MainActivity extends AppCompatActivity {
         String state = localError != null && !snapshot.running ? "error" : snapshot.state;
         boolean busy = snapshot.running;
         start.setEnabled(!busy);
+        start.setText("error".equals(state) ? R.string.retry_protection : R.string.start_protection);
         start.setVisibility(busy ? View.GONE : View.VISIBLE);
         stop.setVisibility(busy ? View.VISIBLE : View.GONE);
         stop.setEnabled(busy && !"stopping".equals(state));
@@ -305,6 +306,7 @@ public final class MainActivity extends AppCompatActivity {
 
     @Override protected void onResume() {
         super.onResume();
+        ProtectionTileService.refresh(this);
         GuardStatusStore.Status snapshot = GuardStatusStore.read(this);
         if (GuardPreferences.automatic(this) && !snapshot.running && !"error".equals(snapshot.state)) startGuard();
         handler.post(refresh);

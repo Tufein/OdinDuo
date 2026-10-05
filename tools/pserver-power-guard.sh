@@ -10,6 +10,7 @@ owner_uid=
 owner_token=
 owner_missing_until=0
 restart_grace=60
+observation=WAITING
 log() { echo "$(date +%s) $*"; }
 clock_seconds() { read seconds unused < /proc/uptime; echo "${seconds%%.*}"; }
 owner_alive() {
@@ -55,7 +56,11 @@ session_valid() {
   [ "$now" -lt "$owner_missing_until" ]
 }
 heartbeat() {
-  [ -z "$owner_pid" ] || printf '%s %s\n' "$owner_token" "$(clock_seconds)" > "$base/guard-heartbeat"
+  [ -n "$owner_pid" ] || return 0
+  # Readers never see a partially written observation. Keep compatibility with older owners.
+  temporary="$base/guard-heartbeat.$$.tmp"
+  printf '%s %s %s\n' "$owner_token" "$(clock_seconds)" "$observation" > "$temporary" &&
+    chmod 0644 "$temporary" && mv -f "$temporary" "$base/guard-heartbeat"
 }
 find_rds() {
   for candidate in /sys/bus/usb/devices/*; do
@@ -193,6 +198,8 @@ done
 case "$rds" in /sys/devices/platform/soc/a600000.ssusb/*) ;; *) log 'Unexpected RDS topology; no power changes'; exit 1 ;; esac
 number=$(cat "$rds/devnum")
 log "RDS detected path=$rds devnum=$number"
+observation=STARTING
+heartbeat
 # Save ancestors first so cleanup restores child first. The whitelist is this USB chain only.
 chain=
 directory=$rds
@@ -217,7 +224,6 @@ for directory in $chain; do
 done
 previous=
 while session_valid && [ ! -f "$state/stop" ]; do
-  heartbeat
   current=$(find_rds)
   [ "$current" = "$rds" ] && [ "$(cat "$rds/devnum" 2>/dev/null)" = "$number" ] || { log 'RDS detached/replaced; restoring'; break; }
   for directory in $chain; do
@@ -230,5 +236,8 @@ while session_valid && [ ! -f "$state/stop" ]; do
   status="control=$(cat "$rds/power/control") runtime=$(cat "$rds/power/runtime_status") host=$(cat "${rds%/*}/power/runtime_status")"
   [ "$status" = "$previous" ] || log "STATE $status"
   previous=$status
+  observation=STARTING
+  [ "$status" != 'control=on runtime=active host=active' ] || observation=ACTIVE
+  heartbeat
   sleep 1
 done

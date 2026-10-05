@@ -10,7 +10,7 @@ OdinDuo applies a temporary USB power-management workaround through the stock AY
 
 Install [OdinDuo 1.0.0](https://github.com/Tufein/OdinDuo/releases/tag/v1.0.0) from the release assets. The signed release APK can update the earlier OdinDuo installation in place; it keeps the same package and signing certificate. A SHA-256 checksum is included. The 1.0 APK is **not debuggable**. Private signing keys are never published.
 
-[OdinDuo 1.1.0-beta.1](https://github.com/Tufein/OdinDuo/releases/tag/v1.1.0-beta.1) adds helper health checks, safer restoration, a Quick Settings tile and setup checks. This is a **prerelease for testing**; 1.0.0 remains the stable release. The new changes have not yet been checked with physical Retroid touch input. It uses the same signing certificate and package for in-place updates. Returning from the beta to 1.0.0 may require uninstalling the beta because Android rejects version-code downgrades; Stop protection before uninstalling.
+[OdinDuo 1.1.0-beta.2](https://github.com/Tufein/OdinDuo/releases/tag/v1.1.0-beta.2) adds reliable status during noisy sessions, recovery after failed restoration, a Retry notification and a tile that refreshes when protection changes. It also includes the helper health and setup checks from beta.1. This is a **prerelease for testing**; 1.0.0 remains the stable release. The new changes have not yet been checked with physical Retroid touch input. It uses the same signing certificate and package for in-place updates. Returning from the beta to 1.0.0 may require uninstalling the beta because Android rejects version-code downgrades; Stop protection before uninstalling.
 
 ## Use
 
@@ -25,7 +25,7 @@ Android may ask for notification permission. Allow it to see background status a
 
 **Appearance** lets you choose system, light or dark mode. **Help & diagnostics → Share diagnostics** exports only the app’s bounded logs and basic device/version information through Android’s share sheet. Nothing is sent automatically; the app has no internet permission.
 
-In **1.1 beta**, open **Help & diagnostics → Check setup → Add quick tile** to add OdinDuo to Android Quick Settings. Tapping the tile when off enables Auto protect; tapping it while protection is running stops protection and turns Auto protect off. Its subtitle follows the actual protection state. Long-press opens OdinDuo. Locked devices require unlocking before a tap changes protection. The tile only polls while the Quick Settings panel is open.
+In **1.1 beta**, open **Help & diagnostics → Check setup → Add quick tile** to add OdinDuo to Android Quick Settings. Tapping the tile when off enables Auto protect; tapping it while protection is running stops protection and turns Auto protect off. Its subtitle follows the actual protection state. Long-press opens OdinDuo. Locked devices require unlocking before a tap changes protection. Status changes request a system tile refresh, including when the panel is closed; the tile has no periodic polling loop.
 
 **Check setup** reports the stock AYN service, primary Android user, notification permission, Android background restrictions, battery optimisation and Auto protect setting. **App settings** opens Android’s per-app settings so you can adjust restrictions yourself. These checks also appear in shared diagnostics. The helper paths support the primary Android user; other profiles cannot start protection. Notification permission is requested once rather than again after a theme change.
 
@@ -52,7 +52,9 @@ The guard:
 - Allows up to 60 seconds for Android to restart an unexpectedly killed service process; the restarted service adopts the existing guard and keeps the saved USB settings. If no valid owner returns, the guard restores settings and exits. Explicit Stop bypasses this grace period. A separate watchdog handles unexpected worker termination.
 - Retains restoration snapshots if a write fails rather than silently discarding them.
 
-The 1.1 beta checks the helper’s session heartbeat before reporting protection. If it disappears, the UI shows **Recovering** rather than a historical **Protected** sample. After a grace period, Auto protect confirms USB restoration before relaunching; manual sessions end with an error. Unexpected helper exits are limited to two recovery attempts per 60 seconds of awake uptime. Normal display detach/reconnect is not counted as a failure. The grace period uses Android uptime, excluding deep sleep, so a stale heartbeat immediately after waking does not trigger a restart. Persistent failure or unconfirmed restoration stops the session and leaves diagnostics available.
+The 1.1 beta checks the helper’s session heartbeat before reporting protection. If it disappears, the UI shows **Recovering** rather than a historical **Protected** sample. After a grace period, Auto protect confirms USB restoration before relaunching; manual sessions end with an error. Unexpected helper exits are limited to two recovery attempts per 60 seconds of awake uptime. Normal display detach/reconnect is not counted as a failure. The grace period uses Android uptime, excluding deep sleep, so a stale heartbeat immediately after waking does not trigger a restart. Persistent failure or unconfirmed restoration stops the session and leaves diagnostics available. With notifications allowed, a failure notification offers **Retry protection**; the dashboard offers the same action. Retrying must first confirm restoration of any previous session, even if its marker is already missing.
+
+In beta.2, the helper atomically publishes its current WAITING, STARTING or ACTIVE observation alongside its session heartbeat. A busy diagnostic log cannot push the last good power sample outside the read window and cause a healthy helper to stop. Fatal log errors and confirmed shutdown still take precedence. A session adopted from an earlier APK remains compatible; after upgrading, **Stop protection once and re-enable Auto protect** to start the updated helper.
 
 Restoration now verifies that each written value can be read back unchanged. Read failures, invalid snapshots and mismatched readback retain the snapshots and prevent a successful Stop acknowledgement or new session.
 
@@ -110,7 +112,7 @@ The updated build (version code 7) passed the build, release lint (zero errors) 
 
 ## Diagnostics and removal
 
-The 1.1 beta adds regression checks for startup timeout, silent helper loss, sleep grace and bounded recovery. The real-shell integration test injects a restoration readback mismatch, checks that Stop fails while preserving snapshots, then confirms a successful retry. See [the beta release notes](docs/releases/1.1.0-beta.1.md) for Android checks and remaining physical validation.
+The 1.1 beta adds regression checks for startup timeout, silent helper loss, sleep grace and bounded recovery. The real-shell integration test injects a restoration readback mismatch, checks that Stop fails while preserving snapshots, then confirms a successful retry. Beta.2 also checks current observations with noisy log tails, legacy heartbeat adoption, malformed/future/stale records, and atomic WAITING/ACTIVE transitions. Android emulator regressions cover the reproduced beta.1 log-overflow failure, tile refresh while its panel is closed, a markerless failed restoration, blocked unsafe retries and a successful notification Retry. See [the beta release notes](docs/releases/1.1.0-beta.2.md) for Android checks and remaining physical validation.
 
 For the published 1.0 APK, use **Help & diagnostics → Share diagnostics**. `adb shell run-as` is intentionally unavailable in the non-debuggable release. Diagnostics omit device serial numbers, account information and installed-app lists; session tokens are redacted.
 
@@ -125,7 +127,7 @@ adb -s YOUR_ODIN_SERIAL shell run-as nl.retroid.touchguard cat files/guard-event
 
 Collectors have bounded waits and save output in the ignored `capture/` directory. Captures can include device identifiers and installed-app information; review them before sharing. App events rotate at 512 KiB and polling reads at most the latest 32 KiB of the power log.
 
-If restoration reports a failure, stop testing and collect logs before starting another session. Snapshots remain in `/data/local/tmp/retroid-power-guard-state`. Do not delete that directory to bypass an unresolved restoration.
+If restoration reports a failure, export diagnostics. **Retry protection** first retries the old restoration and starts a new session only after confirmation; if restoration still fails, the error and snapshots remain. Snapshots remain in `/data/local/tmp/retroid-power-guard-state`. Do not delete that directory to bypass an unresolved restoration.
 
 To remove OdinDuo, tap **Stop protection**, wait for restoration, then:
 

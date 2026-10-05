@@ -37,10 +37,11 @@ public final class GuardService extends Service {
             if (stopped || ending) return;
             try {
                 String log = VendorBridge.readLog(GuardService.this);
-                GuardLogState.State observation = GuardLogState.read(log);
+                GuardHeartbeat sample = VendorBridge.heartbeat(GuardService.this);
+                GuardLogState.State observation = sample.observation(log);
                 // A historical successful power sample cannot prove the root helper is alive.
                 if (observation != GuardLogState.State.ERROR && observation != GuardLogState.State.STOPPED) {
-                    GuardHealth.State heartbeat = health.observe(VendorBridge.guardAlive(GuardService.this),
+                    GuardHealth.State heartbeat = health.observe(sample.alive,
                             SystemClock.uptimeMillis());
                     if (heartbeat == GuardHealth.State.LOST) {
                         if (!automatic || !health.allowRecovery(SystemClock.uptimeMillis())) {
@@ -144,6 +145,7 @@ public final class GuardService extends Service {
             return START_NOT_STICKY;
         }
         started = true;
+        ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).cancel(2);
         try {
             Notification notification = notification(getString(R.string.status_preparing));
             if (Build.VERSION.SDK_INT >= 34) {
@@ -166,6 +168,8 @@ public final class GuardService extends Service {
                 // onDestroy cleanup finishes. Never let its Stop tear down a new USB lease.
                 startupBarrier.await();
                 if (stopped || ending) return;
+                // Cleanup can post its failure after this instance's initial cancellation.
+                ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).cancel(2);
                 if (requestedMode != null && !updateAutomatic(requestedMode)) return;
                 status("starting", R.string.status_starting);
                 launchGuard();
@@ -182,11 +186,12 @@ public final class GuardService extends Service {
             GuardPreferences.setAutomatic(this, enabled);
             automatic = enabled;
             EventLog.write(this, "automatic protection " + (enabled ? "enabled" : "disabled"));
-            if (!enabled && GuardLogState.read(VendorBridge.readLog(this)) != GuardLogState.State.ACTIVE) {
+            GuardLogState.State observed = VendorBridge.heartbeat(this).observation(VendorBridge.readLog(this));
+            if (!enabled && observed != GuardLogState.State.ACTIVE) {
                 finish(getString(R.string.status_stopped), "idle");
                 return false;
             }
-            if (enabled && GuardLogState.read(VendorBridge.readLog(this)) == GuardLogState.State.WAITING) {
+            if (enabled && observed == GuardLogState.State.WAITING) {
                 status("waiting", R.string.status_auto_waiting);
             }
             return true;
@@ -234,6 +239,23 @@ public final class GuardService extends Service {
         EventLog.write(this, "status " + text);
     }
 
+    private void showFailureNotification() {
+        if (!"error".equals(finalState)) return;
+        try {
+            PendingIntent open = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_IMMUTABLE);
+            PendingIntent retry = PendingIntent.getForegroundService(this, 2,
+                    new Intent(this, GuardService.class), PendingIntent.FLAG_IMMUTABLE);
+            Notification failure = new Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_touch)
+                    .setContentTitle(getString(R.string.failure_title)).setContentText(finalStatus)
+                    .setStyle(new Notification.BigTextStyle().bigText(finalStatus))
+                    .setContentIntent(open).setAutoCancel(true).setOnlyAlertOnce(true)
+                    .addAction(new Notification.Action.Builder(null, getString(R.string.retry_protection), retry).build()).build();
+            ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).notify(2, failure);
+        } catch (RuntimeException exception) {
+            EventLog.write(this, "cannot show protection failure " + exception);
+        }
+    }
+
     @Override public void onDestroy() {
         stopped = true;
         CountDownLatch restoration = new CountDownLatch(1);
@@ -243,17 +265,15 @@ public final class GuardService extends Service {
         worker.post(() -> {
             try {
                 VendorBridge.stop(this);
-                String log = VendorBridge.readLog(this);
-                if (log.contains("RESTORE FAILED")) {
-                    finalStatus = getString(R.string.status_restore_error);
-                    finalState = "error";
-                }
+                // stop() checks a unique acknowledgement and pending snapshots. An older
+                // RESTORE FAILED line must not override a later successful recovery.
             } catch (Exception exception) {
                 EventLog.write(this, "vendor stop failed " + exception);
                 finalStatus = getString(R.string.status_stop_error);
                 finalState = "error";
             }
             GuardStatusStore.write(this, false, finalState, finalStatus);
+            showFailureNotification();
             EventLog.write(this, "service stopped: " + finalStatus);
             restoration.countDown();
             thread.quitSafely();

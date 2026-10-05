@@ -78,6 +78,8 @@ with tempfile.TemporaryDirectory(prefix='odinduo-guard-') as directory:
         try:
             until(lambda: 'STATE control=on' in log.read_text(), 'Guard did not pin USB')
             assert all(p.read_text().strip() == 'on' for p in controls)
+            until(lambda: (app / 'guard-heartbeat').read_text().strip() == token + ' 100 ACTIVE',
+                  'Live protection observation was not published')
             shutil.rmtree(proc / '44')
             until(lambda: 'OWNER missing' in log.read_text(), 'Missing owner was not detected')
             assert all(p.read_text().strip() == 'on' for p in controls), 'Power dropped during restart grace'
@@ -135,10 +137,14 @@ with tempfile.TemporaryDirectory(prefix='odinduo-guard-') as directory:
             try:
                 until(lambda: 'READY waiting for RDS' in log.read_text(), 'Monitor did not become ready')
                 assert all(p.read_text().strip() == 'auto' for p in controls), 'Waiting changed USB power'
+                until(lambda: (app / 'guard-heartbeat').read_text().strip() == token + ' 261 WAITING',
+                      'Waiting observation was not published')
                 (rds / 'devnum').write_text(str(10 + cycle) + '\n')
                 link.symlink_to(rds)
                 until(lambda: 'STATE control=on' in log.read_text(), 'Reconnected display was not protected')
                 assert all(p.read_text().strip() == 'on' for p in controls)
+                until(lambda: (app / 'guard-heartbeat').read_text().strip() == token + ' 261 ACTIVE',
+                      'Connected observation did not replace Waiting')
                 link.unlink()
                 until(lambda: 'GUARD stopped' in log.read_text(), 'Detach did not finish restoration')
                 process.wait(timeout=4)

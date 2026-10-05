@@ -13,6 +13,8 @@
     <string name="device_disconnected">Waiting for your Retroid display</string>
     <string name="start_protection">Start protection</string>
     <string name="stop_protection">Stop protection</string>
+    <string name="retry_protection">Retry protection</string>
+    <string name="failure_title">OdinDuo needs attention</string>
     <string name="background_hint">Keeps working when you close the app.</string>
     <string name="automatic_title">Auto protect</string>
     <string name="automatic_body">Ready for every connection. Protect your display automatically, even after restarting your Odin.</string>
@@ -59,7 +61,6 @@
     <string name="status_starting">Starting touch protection…</string>
     <string name="status_start_error">Could not start protection: %1$s</string>
     <string name="status_stopping">Stopping protection and restoring USB power management…</string>
-    <string name="status_restore_error">Power settings could not be fully restored. Share diagnostics from Help.</string>
     <string name="status_stop_error">Stopping could not be confirmed. Share diagnostics from Help.</string>
     <string name="status_settings_error">Could not save Auto protect. Please try again.</string>
     <string name="status_recovering">Checking the background helper. Auto protect can restore the session if needed.</string>

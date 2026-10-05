@@ -50,14 +50,15 @@ final class VendorBridge {
     static File logFile(Context context) { return new File(context.getFilesDir(), "power-guard.txt"); }
 
     static boolean guardAlive(Context context) {
+        return heartbeat(context).alive;
+    }
+
+    static GuardHeartbeat heartbeat(Context context) {
         try {
             String token = new String(Files.readAllBytes(new File(context.getFilesDir(), "guard-enabled").toPath()), StandardCharsets.UTF_8).trim();
-            if (!token.matches("[a-f0-9]{32}")) return false;
-            String[] heartbeat = new String(Files.readAllBytes(new File(context.getFilesDir(), "guard-heartbeat").toPath()), StandardCharsets.UTF_8).trim().split("\\s+");
-            if (heartbeat.length != 2 || !token.equals(heartbeat[0])) return false;
-            long age = SystemClock.elapsedRealtime() / 1000 - Long.parseLong(heartbeat[1]);
-            return age >= 0 && age <= 10;
-        } catch (Exception exception) { return false; }
+            String record = new String(Files.readAllBytes(new File(context.getFilesDir(), "guard-heartbeat").toPath()), StandardCharsets.UTF_8);
+            return GuardHeartbeat.read(token, record, SystemClock.elapsedRealtime() / 1000);
+        } catch (Exception exception) { return GuardHeartbeat.missing(); }
     }
 
     private static void writeOwner(Context context, String token) throws Exception {
@@ -83,8 +84,9 @@ final class VendorBridge {
             EventLog.write(context, "existing power session adopted; pid=" + Process.myPid());
             return;
         }
-        // Clear an obsolete session before starting; do not overwrite a running worker's script or log.
-        if (new File(context.getFilesDir(), "guard-enabled").exists()) stop(context);
+        // Failed cleanup removes the marker but can retain root-owned restoration snapshots.
+        // Confirm recovery through the previous helper before replacing its script or log.
+        if (new File(context.getFilesDir(), "power-guard.sh").isFile()) stop(context);
         File script = new File(context.getFilesDir(), "power-guard.sh");
         try (InputStream input = context.getResources().openRawResource(R.raw.power_guard);
              OutputStream output = context.openFileOutput(script.getName(), Context.MODE_PRIVATE)) {
@@ -102,7 +104,7 @@ final class VendorBridge {
         writeOwner(context, token);
         String command = "/system/bin/sh " + ProcessIdentity.quote(script.getAbsolutePath())
                 + " --watch-app " + Process.myPid() + " " + ProcessIdentity.startTicks(stat)
-                + " " + Process.myUid() + " " + token + " > " + ProcessIdentity.quote(logFile(context).getAbsolutePath())
+                + " " + Process.myUid() + " " + token + " >> " + ProcessIdentity.quote(logFile(context).getAbsolutePath())
                 + " 2>&1 &";
         request(command);
         EventLog.write(context, "vendor start accepted; pid=" + Process.myPid());
