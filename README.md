@@ -8,6 +8,8 @@ OdinDuo applies a temporary USB power-management workaround through the stock AY
 
 ## Download
 
+The [1.1.0 release candidate](docs/releases/1.1.0.md) is in validation with version code 10, CI and SDK/dependency maintenance. It has not yet replaced the stable release.
+
 Install [OdinDuo 1.0.0](https://github.com/Tufein/OdinDuo/releases/tag/v1.0.0) from the release assets. The signed release APK can update the earlier OdinDuo installation in place; it keeps the same package and signing certificate. A SHA-256 checksum is included. The 1.0 APK is **not debuggable**. Private signing keys are never published.
 
 [OdinDuo 1.1.0-beta.2](https://github.com/Tufein/OdinDuo/releases/tag/v1.1.0-beta.2) adds reliable status during noisy sessions, recovery after failed restoration, a Retry notification and a tile that refreshes when protection changes. It also includes the helper health and setup checks from beta.1. This is a **prerelease for testing**; 1.0.0 remains the stable release. The new changes have not yet been checked with physical Retroid touch input. It uses the same signing certificate and package for in-place updates. Returning from the beta to 1.0.0 may require uninstalling the beta because Android rejects version-code downgrades; Stop protection before uninstalling.
@@ -60,6 +62,8 @@ Restoration now verifies that each written value can be read back unchanged. Rea
 
 Stock PServer accepted the original 365-character compound Stop request without executing its restoration acknowledgement. This stopped automatic connection handling after detach on the physical Odin. A separate bundled stop helper now performs restoration and writes the unique acknowledgement; the Binder request only launches that helper. It also works with a guard left by an earlier APK. Protection rearms only after successful confirmation, and pending restoration snapshots still block a new session.
 
+The stock-service lookup has a `PrivateApi` lint exception scoped to `VendorBridge.service()`: PServer has no public SDK lookup. The exception is documented rather than removing the vendor dependency; unsupported firmware and Android profiles still fail the availability check.
+
 The global `usbcore.autosuspend` setting is untouched. Runtime USB suspension and system sleep are different mechanisms. The app does not request an Android CPU wake lock, inject touches, alter launcher configuration, or request internet access.
 
 **Automatic connection handling:** the running guard detects the Retroid device directly in the USB topology, restores each finished connection before preparing the next, and keeps its foreground notification visible. It does not rely on a cold USB attach broadcast: Android can filter this accessory’s boot-HID interface. Open the app and enable Auto protect once; Android force-stop and firmware background restrictions can require reopening it.
@@ -68,7 +72,7 @@ Normal Android USB permission is insufficient for this accessory: its boot-HID i
 
 ## Build and install
 
-Requirements: **JDK 17 or newer**, Android SDK **platform 36**, build-tools **36.0.0**, and platform-tools for ADB installation. The Gradle 9.3.1 wrapper downloads the build tool automatically; Android Gradle Plugin is pinned to 9.1.0 and Material Components to 1.14.0.
+Requirements: **JDK 17 or newer**, Android SDK **platform 36**, build-tools **36.0.0**, and platform-tools for ADB installation. The Gradle 9.8.0 wrapper downloads the build tool automatically; Android Gradle Plugin is pinned to 9.1.0 and Material Components to 1.14.0; AppCompat is 1.8.0 and the app targets SDK 36.
 
 Configure `JAVA_HOME` and `ANDROID_HOME` (or `ANDROID_SDK_ROOT`) for your installations. `app/build.sh` also recognises the usual macOS SDK and Homebrew OpenJDK 21 locations.
 
@@ -97,6 +101,8 @@ For an existing installation, preserve its signing key when building updates. Th
 ./tools/check.sh
 ./gradlew :app:lintRelease
 ```
+
+GitHub Actions runs `assembleDebug`, `lintDebug` and `tools/check.sh` for every pull request and pushes to main or Codex branches. The workflow pins actions to commit hashes, installs SDK 36 and build-tools 36.0.0, and requires no release signing key. Its debug artifacts are retained for seven days and use a development certificate; use the release assets for updates to an installed public version.
 
 The checks verify process identity parsing, rejection of truncated records, shell argument quoting without command substitution, USB descriptor/target validation, and log parsing that honours the latest power state and gives restoration failures precedence. The shell integration test runs the real guard against temporary fake proc/USB files: process loss preserves power settings, a reused PID is rejected, a new service adopts the session without resetting USB, explicit Stop restores promptly, and an expired restart grace restores the original settings. It also checks detach acknowledgements across three connection leases, rejects invalid acknowledgement tokens and ensures pending snapshots cannot be acknowledged as successful. It never writes host or connected-device power settings. Emulator checks cannot establish that physical Retroid touch survives sleep.
 

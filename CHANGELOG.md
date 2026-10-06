@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0 — Unreleased
+
+- Require fresh helper health and current atomic power observations before showing Protected; noisy logs no longer stop a healthy session.
+- Bound automatic helper recovery, verify restoration readback, and preserve snapshots when restoration cannot be confirmed.
+- Confirm cleanup of an earlier session before retrying, even when its marker is missing; offer Retry protection in the dashboard and a failure notification.
+- Add a Quick Settings tile with updates while the panel is closed, plus setup checks and an Android app-settings shortcut.
+- Request notification permission once and preserve help paragraphs.
+- Target Android SDK 36, update AppCompat to 1.8.0 and the Gradle wrapper to 9.8.0, and remove the unnecessary launcher-icon API qualifier. Document the narrowly scoped stock-AYN reflection lint exception.
+- Add Android CI for every pull request: build the debug APK, run Android lint and the policy/shell regression suite, and retain debug artifacts for seven days.
+- Prepare version code 10 with the existing package and signing certificate. Physical beta.2 and final-candidate validation remain release gates.
+
 ## 1.0.0 — 2026-10-05
 
 - Fix Auto protect stopping after display detach on stock Odin 3 firmware: use a short vendor request to a bundled stop helper, and confirm restoration before rearming.

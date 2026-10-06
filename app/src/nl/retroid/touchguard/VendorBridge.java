@@ -17,6 +17,9 @@ import java.nio.file.Files;
 final class VendorBridge {
     private VendorBridge() { }
 
+    // Stock PServer has no public SDK lookup. Keep this vendor-specific exception here;
+    // available() probes it and rejects unavailable firmware/profiles before launching.
+    @android.annotation.SuppressLint("PrivateApi")
     private static IBinder service() throws Exception {
         IBinder value = (IBinder) Class.forName("android.os.ServiceManager")
                 .getMethod("getService", String.class).invoke(null, "PServerBinder");
