@@ -7,9 +7,9 @@ android {
         // Keep the existing package so updates preserve the working Odin installation.
         applicationId 'nl.retroid.touchguard'
         minSdk 33
-        targetSdk 35
-        versionCode 9
-        versionName '1.1.0-beta.2'
+        targetSdk 36
+        versionCode 10
+        versionName '1.1.0'
     }
     sourceSets {
         main {
@@ -63,5 +63,5 @@ tasks.named('preBuild').configure { dependsOn guardResources }
 
 dependencies {
     implementation 'com.google.android.material:material:1.14.0'
-    implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'androidx.appcompat:appcompat:1.8.0'
 }

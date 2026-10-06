@@ -8,9 +8,9 @@ OdinDuo applies a temporary USB power-management workaround through the stock AY
 
 ## Download
 
-Install [OdinDuo 1.0.0](https://github.com/Tufein/OdinDuo/releases/tag/v1.0.0) from the release assets. The signed release APK can update the earlier OdinDuo installation in place; it keeps the same package and signing certificate. A SHA-256 checksum is included. The 1.0 APK is **not debuggable**. Private signing keys are never published.
+Install [OdinDuo 1.1.0](https://github.com/Tufein/OdinDuo/releases/tag/v1.1.0) from the release assets. The non-debuggable APK keeps the same package and signing certificate and updates 1.0.0 or the 1.1 betas in place, without uninstalling. A SHA-256 checksum is included; private signing keys are never published.
 
-[OdinDuo 1.1.0-beta.2](https://github.com/Tufein/OdinDuo/releases/tag/v1.1.0-beta.2) adds reliable status during noisy sessions, recovery after failed restoration, a Retry notification and a tile that refreshes when protection changes. It also includes the helper health and setup checks from beta.1. This is a **prerelease for testing**; 1.0.0 remains the stable release. The new changes have not yet been checked with physical Retroid touch input. It uses the same signing certificate and package for in-place updates. Returning from the beta to 1.0.0 may require uninstalling the beta because Android rejects version-code downgrades; Stop protection before uninstalling.
+**After updating, Stop protection once and enable Auto protect again** to start the updated helper. Version 1.1 adds current helper health, bounded recovery, a failure notification with Retry protection, an Android Quick Settings switch and setup checks. See [the release notes and validation](docs/releases/1.1.0.md). Earlier 1.1 beta releases remain prereleases.
 
 ## Use
 
@@ -25,7 +25,7 @@ Android may ask for notification permission. Allow it to see background status a
 
 **Appearance** lets you choose system, light or dark mode. **Help & diagnostics → Share diagnostics** exports only the app’s bounded logs and basic device/version information through Android’s share sheet. Nothing is sent automatically; the app has no internet permission.
 
-In **1.1 beta**, open **Help & diagnostics → Check setup → Add quick tile** to add OdinDuo to Android Quick Settings. Tapping the tile when off enables Auto protect; tapping it while protection is running stops protection and turns Auto protect off. Its subtitle follows the actual protection state. Long-press opens OdinDuo. Locked devices require unlocking before a tap changes protection. Status changes request a system tile refresh, including when the panel is closed; the tile has no periodic polling loop.
+In **1.1**, open **Help & diagnostics → Check setup → Add quick tile** to add OdinDuo to Android Quick Settings. Tapping the tile when off enables Auto protect; tapping it while protection is running stops protection and turns Auto protect off. Its subtitle follows the actual protection state. Long-press opens OdinDuo. Locked devices require unlocking before a tap changes protection. Status changes request a system tile refresh, including when the panel is closed; the tile has no periodic polling loop.
 
 **Check setup** reports the stock AYN service, primary Android user, notification permission, Android background restrictions, battery optimisation and Auto protect setting. **App settings** opens Android’s per-app settings so you can adjust restrictions yourself. These checks also appear in shared diagnostics. The helper paths support the primary Android user; other profiles cannot start protection. Notification permission is requested once rather than again after a theme change.
 
@@ -52,13 +52,15 @@ The guard:
 - Allows up to 60 seconds for Android to restart an unexpectedly killed service process; the restarted service adopts the existing guard and keeps the saved USB settings. If no valid owner returns, the guard restores settings and exits. Explicit Stop bypasses this grace period. A separate watchdog handles unexpected worker termination.
 - Retains restoration snapshots if a write fails rather than silently discarding them.
 
-The 1.1 beta checks the helper’s session heartbeat before reporting protection. If it disappears, the UI shows **Recovering** rather than a historical **Protected** sample. After a grace period, Auto protect confirms USB restoration before relaunching; manual sessions end with an error. Unexpected helper exits are limited to two recovery attempts per 60 seconds of awake uptime. Normal display detach/reconnect is not counted as a failure. The grace period uses Android uptime, excluding deep sleep, so a stale heartbeat immediately after waking does not trigger a restart. Persistent failure or unconfirmed restoration stops the session and leaves diagnostics available. With notifications allowed, a failure notification offers **Retry protection**; the dashboard offers the same action. Retrying must first confirm restoration of any previous session, even if its marker is already missing.
+OdinDuo checks the helper’s session heartbeat before reporting protection. If it disappears, the UI shows **Recovering** rather than a historical **Protected** sample. After a grace period, Auto protect confirms USB restoration before relaunching; manual sessions end with an error. Unexpected helper exits are limited to two recovery attempts per 60 seconds of awake uptime. Normal display detach/reconnect is not counted as a failure. The grace period uses Android uptime, excluding deep sleep, so a stale heartbeat immediately after waking does not trigger a restart. Persistent failure or unconfirmed restoration stops the session and leaves diagnostics available. With notifications allowed, a failure notification offers **Retry protection**; the dashboard offers the same action. Retrying must first confirm restoration of any previous session, even if its marker is already missing.
 
 In beta.2, the helper atomically publishes its current WAITING, STARTING or ACTIVE observation alongside its session heartbeat. A busy diagnostic log cannot push the last good power sample outside the read window and cause a healthy helper to stop. Fatal log errors and confirmed shutdown still take precedence. A session adopted from an earlier APK remains compatible; after upgrading, **Stop protection once and re-enable Auto protect** to start the updated helper.
 
 Restoration now verifies that each written value can be read back unchanged. Read failures, invalid snapshots and mismatched readback retain the snapshots and prevent a successful Stop acknowledgement or new session.
 
 Stock PServer accepted the original 365-character compound Stop request without executing its restoration acknowledgement. This stopped automatic connection handling after detach on the physical Odin. A separate bundled stop helper now performs restoration and writes the unique acknowledgement; the Binder request only launches that helper. It also works with a guard left by an earlier APK. Protection rearms only after successful confirmation, and pending restoration snapshots still block a new session.
+
+The stock-service lookup has a `PrivateApi` lint exception scoped to `VendorBridge.service()`: PServer has no public SDK lookup. The exception is documented rather than removing the vendor dependency; unsupported firmware and Android profiles still fail the availability check.
 
 The global `usbcore.autosuspend` setting is untouched. Runtime USB suspension and system sleep are different mechanisms. The app does not request an Android CPU wake lock, inject touches, alter launcher configuration, or request internet access.
 
@@ -68,7 +70,7 @@ Normal Android USB permission is insufficient for this accessory: its boot-HID i
 
 ## Build and install
 
-Requirements: **JDK 17 or newer**, Android SDK **platform 36**, build-tools **36.0.0**, and platform-tools for ADB installation. The Gradle 9.3.1 wrapper downloads the build tool automatically; Android Gradle Plugin is pinned to 9.1.0 and Material Components to 1.14.0.
+Requirements: **JDK 17 or newer**, Android SDK **platform 36**, build-tools **36.0.0**, and platform-tools for ADB installation. The Gradle 9.8.0 wrapper downloads the build tool automatically; Android Gradle Plugin is pinned to 9.1.0 and Material Components to 1.14.0; AppCompat is 1.8.0 and the app targets SDK 36.
 
 Configure `JAVA_HOME` and `ANDROID_HOME` (or `ANDROID_SDK_ROOT`) for your installations. `app/build.sh` also recognises the usual macOS SDK and Homebrew OpenJDK 21 locations.
 
@@ -79,7 +81,7 @@ adb -s YOUR_ODIN_SERIAL install -r app/build/OdinDuo.apk
 adb -s YOUR_ODIN_SERIAL shell am start -n nl.retroid.touchguard/.MainActivity
 ```
 
-The app remains `nl.retroid.touchguard` so OdinDuo can update the original installation. Version **1.0.0** adds automatic connection sessions, opted-in boot/update startup, a redesigned dashboard, theme selection, adaptive/themed launcher icons and diagnostics sharing. The device-scoped shell power guard is unchanged.
+The app remains `nl.retroid.touchguard` so OdinDuo can update the original installation. The current version is **1.1.0**, with version code **10** and target SDK **36**.
 
 The canonical guard in `tools/pserver-power-guard.sh` and its stop helper in `tools/pserver-power-stop.sh` are bundled as generated resources during the build. Generated resources, APKs, device captures and signing keys are excluded from Git. `./app/build.sh` produces a debug APK for development. To build the non-debuggable release:
 
@@ -98,6 +100,8 @@ For an existing installation, preserve its signing key when building updates. Th
 ./gradlew :app:lintRelease
 ```
 
+GitHub Actions runs `assembleDebug`, `lintDebug` and `tools/check.sh` for every pull request and pushes to main or Codex branches. The workflow pins actions to commit hashes, installs SDK 36 and build-tools 36.0.0, and requires no release signing key. Its debug artifacts are retained for seven days and use a development certificate; use the release assets for updates to an installed public version. The protected main branch requires an up-to-date PR with the Android build and checks result from GitHub Actions, including for administrators.
+
 The checks verify process identity parsing, rejection of truncated records, shell argument quoting without command substitution, USB descriptor/target validation, and log parsing that honours the latest power state and gives restoration failures precedence. The shell integration test runs the real guard against temporary fake proc/USB files: process loss preserves power settings, a reused PID is rejected, a new service adopts the session without resetting USB, explicit Stop restores promptly, and an expired restart grace restores the original settings. It also checks detach acknowledgements across three connection leases, rejects invalid acknowledgement tokens and ensures pending snapshots cannot be acknowledged as successful. It never writes host or connected-device power settings. Emulator checks cannot establish that physical Retroid touch survives sleep.
 
 Physical validation of the workaround recorded three sleep/wake pairs with genuine raw touch events after each wake. The tester reported five uninterrupted cycles in that run. The USB host was active in all 69 recorded samples; the Retroid device was active in 68 samples and briefly suspended in one. The guard corrected six firmware overwrites of the touchscreen's power setting.
@@ -110,11 +114,13 @@ The initial 1.0 build was checked in an isolated Android 15 emulator with a test
 
 The updated build (version code 7) passed the build, release lint (zero errors) and regression checks, including the stop helper’s success, invalid-token and pending-restoration cases. It installed over 1.0.0 on the physical Odin with the same certificate, resumed the enabled automatic mode after app replacement, confirmed Stop through the stock service and returned to a clean waiting session. The brightness investigation used the connected physical Retroid display; the matching guide and its layout were inspected in an Android 15 emulator. A new physical three-connection touch test was requested separately; its result is not included in these measurements.
 
+Version 1.1.0 passed local debug/release builds, Android lint (zero issues with the documented vendor lookup exception), policy/shell regressions and Android 15 emulator checks. On the stock Odin 3, its actual Quick Settings switch started and stopped protection, and the real notification Retry recovered a deliberately interrupted manual helper session while no Retroid was connected. The final-candidate recording contains 269 raw touch frames after two observed doze/wake cycles and one display reconnect, without touch-reader or sampled protection errors. The tester also completed the beta's five sleep/wake cycles and two reconnect checks; its bounded recording does not independently cover that entire sleep test. See [the release validation](docs/releases/1.1.0.md).
+
 ## Diagnostics and removal
 
-The 1.1 beta adds regression checks for startup timeout, silent helper loss, sleep grace and bounded recovery. The real-shell integration test injects a restoration readback mismatch, checks that Stop fails while preserving snapshots, then confirms a successful retry. Beta.2 also checks current observations with noisy log tails, legacy heartbeat adoption, malformed/future/stale records, and atomic WAITING/ACTIVE transitions. Android emulator regressions cover the reproduced beta.1 log-overflow failure, tile refresh while its panel is closed, a markerless failed restoration, blocked unsafe retries and a successful notification Retry. See [the beta release notes](docs/releases/1.1.0-beta.2.md) for Android checks and remaining physical validation.
+The 1.1 regression suite checks for startup timeout, silent helper loss, sleep grace and bounded recovery. The real-shell integration test injects a restoration readback mismatch, checks that Stop fails while preserving snapshots, then confirms a successful retry. Beta.2 also checks current observations with noisy log tails, legacy heartbeat adoption, malformed/future/stale records, and atomic WAITING/ACTIVE transitions. Android emulator regressions cover the reproduced beta.1 log-overflow failure, tile refresh while its panel is closed, a markerless failed restoration, blocked unsafe retries and a successful notification Retry. See [the 1.1.0 release notes](docs/releases/1.1.0.md) for Android checks, physical validation and their limits.
 
-For the published 1.0 APK, use **Help & diagnostics → Share diagnostics**. `adb shell run-as` is intentionally unavailable in the non-debuggable release. Diagnostics omit device serial numbers, account information and installed-app lists; session tokens are redacted.
+For the published release APK, use **Help & diagnostics → Share diagnostics**. `adb shell run-as` is intentionally unavailable in the non-debuggable release. Diagnostics omit device serial numbers, account information and installed-app lists; session tokens are redacted.
 
 For developer builds, use the Odin’s explicit ADB serial, especially if other devices or emulators are connected:
 
