@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.0 — Unreleased
+## 1.1.0 — 2026-10-06
 
 - Require fresh helper health and current atomic power observations before showing Protected; noisy logs no longer stop a healthy session.
 - Bound automatic helper recovery, verify restoration readback, and preserve snapshots when restoration cannot be confirmed.
@@ -9,7 +9,8 @@
 - Request notification permission once and preserve help paragraphs.
 - Target Android SDK 36, update AppCompat to 1.8.0 and the Gradle wrapper to 9.8.0, and remove the unnecessary launcher-icon API qualifier. Document the narrowly scoped stock-AYN reflection lint exception.
 - Add Android CI for every pull request: build the debug APK, run Android lint and the policy/shell regression suite, and retain debug artifacts for seven days.
-- Prepare version code 10 with the existing package and signing certificate. Physical beta.2 and final-candidate validation remain release gates.
+- Release version code 10 with the existing package and signing certificate for in-place updates.
+- Validate the Quick Settings switch and actual notification Retry on stock Odin 3. Final-candidate recording confirms touch after two doze/wake cycles and one display reconnect; the beta's five sleep/wake cycles and two reconnects were also completed by the tester.
 
 ## 1.0.0 — 2026-10-05
 
