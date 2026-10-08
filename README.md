@@ -8,7 +8,9 @@ OdinDuo applies a temporary USB power-management workaround through the stock AY
 
 ## Download
 
-The current published stable release is [OdinDuo 1.1.0](https://github.com/Tufein/OdinDuo/releases/tag/v1.1.0). Version 2.0.0 is built locally and awaiting stock-device validation; its stable release has not been published yet. The non-debuggable 2.0.0 APK keeps the same package and signing certificate for an in-place update from 1.1.0. Private signing keys are never published.
+Download [OdinDuo 2.0.0](https://github.com/Tufein/OdinDuo/releases/tag/v2.0.0), the latest full release. The signed, non-debuggable APK keeps the same package and signing certificate for an in-place update from 1.1.0. An APK checksum accompanies the download; private signing keys are never published.
+
+The 2.0.0 debug/release builds, Android lint and GitHub CI pass. The new version has not yet been tested on stock Odin 3 hardware; earlier physical touch validation applies to 1.1.0. See the [release validation](docs/releases/2.0.0.md).
 
 **After updating, Stop protection once and enable Auto protect again** to start the updated helper. Version 2.0 adds session duration, bounded local history, guided setup, a manual connection and wake checklist, clearer recovery notifications and optional Dutch per-app language support. See [the 2.0.0 release notes](docs/releases/2.0.0.md).
 
