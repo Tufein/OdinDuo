@@ -8,9 +8,11 @@ import android.content.pm.PackageManager;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.graphics.drawable.Icon;
+import android.os.BatteryManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.format.DateUtils;
 import android.view.InputDevice;
 import android.view.View;
 import android.widget.TextView;
@@ -36,6 +38,7 @@ public final class MainActivity extends AppCompatActivity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private TextView status;
     private TextView device;
+    private TextView sessionInfo;
     private TextView title;
     private Chip stateChip;
     private MaterialButton start;
@@ -68,6 +71,7 @@ public final class MainActivity extends AppCompatActivity {
         ViewCompat.requestApplyInsets(root);
         status = findViewById(R.id.status);
         device = findViewById(R.id.device);
+        sessionInfo = findViewById(R.id.session_info);
         title = findViewById(R.id.state_title);
         stateChip = findViewById(R.id.state_chip);
         start = findViewById(R.id.start);
@@ -87,6 +91,9 @@ public final class MainActivity extends AppCompatActivity {
         findViewById(R.id.appearance).setOnClickListener(view -> chooseAppearance());
         findViewById(R.id.brightness).setOnClickListener(view -> showBrightnessHelp());
         findViewById(R.id.help).setOnClickListener(view -> showHelp());
+        findViewById(R.id.setup).setOnClickListener(view -> showSetup());
+        findViewById(R.id.history).setOnClickListener(view -> showHistory());
+        findViewById(R.id.connection_test).setOnClickListener(view -> showConnectionTest());
         findViewById(R.id.notification_hint).setOnClickListener(view -> openAppSettings());
         refreshStatus();
 
@@ -96,6 +103,10 @@ public final class MainActivity extends AppCompatActivity {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
         }
         handleIntent(getIntent());
+        if (!getPreferences(MODE_PRIVATE).getBoolean("guided_setup_seen", false)) {
+            getPreferences(MODE_PRIVATE).edit().putBoolean("guided_setup_seen", true).apply();
+            handler.postDelayed(this::showSetup, 450);
+        }
     }
 
     private void refreshStatus() {
@@ -131,6 +142,7 @@ public final class MainActivity extends AppCompatActivity {
             }
         }
         device.setText(present ? R.string.device_connected : R.string.device_disconnected);
+        sessionInfo.setText(sessionSummary(snapshot));
         boolean enabled = GuardPreferences.automatic(this);
         if (pendingAutomatic != null && (enabled == pendingAutomatic
                 || android.os.SystemClock.elapsedRealtime() - modeRequestedAt > 5000)) pendingAutomatic = null;
@@ -237,6 +249,69 @@ public final class MainActivity extends AppCompatActivity {
                 .setNegativeButton(android.R.string.cancel, null).show();
     }
 
+    private void showHistory() {
+        new MaterialAlertDialogBuilder(this).setTitle(R.string.history_title)
+                .setMessage(HistoryStore.display(this))
+                .setPositiveButton(R.string.share_diagnostics, (dialog, which) -> shareDiagnostics())
+                .setNeutralButton(R.string.history_clear, (dialog, which) ->
+                        new MaterialAlertDialogBuilder(this).setTitle(R.string.history_clear_title)
+                                .setMessage(R.string.history_clear_body)
+                                .setPositiveButton(R.string.history_clear, (confirm, ignored) -> {
+                                    HistoryStore.clear(this);
+                                    Toast.makeText(this, R.string.history_cleared, Toast.LENGTH_SHORT).show();
+                                }).setNegativeButton(android.R.string.cancel, null).show())
+                .setNegativeButton(android.R.string.cancel, null).show();
+    }
+
+    private void showConnectionTest() {
+        String[] steps = {getString(R.string.test_touch_now), getString(R.string.test_touch_wake),
+                getString(R.string.test_touch_reconnect)};
+        boolean[] checked = new boolean[steps.length];
+        android.widget.LinearLayout content = new android.widget.LinearLayout(this);
+        content.setOrientation(android.widget.LinearLayout.VERTICAL);
+        int padding = (int) (24 * getResources().getDisplayMetrics().density);
+        content.setPadding(padding, padding / 2, padding, padding / 2);
+        TextView instructions = new TextView(this);
+        instructions.setText(R.string.connection_test_body);
+        content.addView(instructions);
+        for (int index = 0; index < steps.length; index++) {
+            final int step = index;
+            com.google.android.material.checkbox.MaterialCheckBox check =
+                    new com.google.android.material.checkbox.MaterialCheckBox(this);
+            check.setText(steps[index]);
+            check.setOnCheckedChangeListener((button, selected) -> checked[step] = selected);
+            content.addView(check);
+        }
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this);
+        scroll.addView(content);
+        new MaterialAlertDialogBuilder(this).setTitle(R.string.connection_test_title)
+                .setView(scroll)
+                .setPositiveButton(R.string.connection_test_save, (dialog, which) -> {
+                    int passed = 0;
+                    for (boolean value : checked) if (value) passed++;
+                    String result = getString(R.string.connection_test_result, passed, steps.length);
+                    HistoryStore.record(this, result);
+                    Toast.makeText(this, result, Toast.LENGTH_LONG).show();
+                    refreshStatus();
+                }).setNegativeButton(android.R.string.cancel, null).show();
+    }
+
+    private String sessionSummary(GuardStatusStore.Status snapshot) {
+        String battery = batterySummary();
+        if (snapshot.running && snapshot.sessionStartedAt > 0L) {
+            long elapsed = Math.max(0L, System.currentTimeMillis() - snapshot.sessionStartedAt);
+            return getString(R.string.session_summary, DateUtils.formatElapsedTime(elapsed / 1000L), battery);
+        }
+        return getString(R.string.session_latest, HistoryStore.latest(this), battery);
+    }
+
+    private String batterySummary() {
+        BatteryManager battery = getSystemService(BatteryManager.class);
+        int level = battery == null ? 0 : battery.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+        if (battery == null || level < 0 || level > 100) return getString(R.string.battery_unavailable);
+        return getString(R.string.battery_level, level);
+    }
+
     private void openAppSettings() {
         try {
             startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
@@ -272,6 +347,7 @@ public final class MainActivity extends AppCompatActivity {
                     + "\nAuto protect: " + GuardPreferences.automatic(this) + "\nState: " + snapshot.state
                     + "\n" + snapshot.text + "\n\nPower guard\n" + VendorBridge.readLog(this);
             report += "\n\nSetup checks\n" + SetupReport.read(this);
+            report += "\n\nSession history\n" + HistoryStore.export(this);
             File events = new File(getFilesDir(), "guard-events.txt");
             if (events.isFile()) {
                 try (java.io.RandomAccessFile input = new java.io.RandomAccessFile(events, "r")) {

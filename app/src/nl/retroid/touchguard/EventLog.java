@@ -20,6 +20,7 @@ final class EventLog {
             try (FileOutputStream output = new FileOutputStream(file, true)) {
                 output.write(line.getBytes(StandardCharsets.UTF_8));
             }
+            HistoryStore.record(context, event);
         } catch (Exception exception) {
             Log.e("RetroidTouchGuard", "Cannot save event", exception);
         }

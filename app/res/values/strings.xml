@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:locale="en">
     <string name="app_name">OdinDuo</string>
     <string name="app_subtitle">Your second screen, in sync.</string>
     <string name="status_label">TOUCH PROTECTION</string>
@@ -96,4 +96,27 @@
     <string name="setup_guidance">If background protection stops, open App settings and check battery restrictions. Allow notifications for the status and Stop control. Firmware may apply additional background limits.</string>
     <string name="app_settings">App settings</string>
     <string name="app_settings_unavailable">Open Android Settings → Apps → OdinDuo.</string>
+    <string name="session_idle">No active session · Battery status is shown when available</string>
+    <string name="session_summary">Session %1$s · Device battery %2$s</string>
+    <string name="session_latest">Latest: %1$s · Device battery %2$s</string>
+    <string name="battery_level">%1$d%%</string>
+    <string name="battery_unavailable">unavailable</string>
+    <string name="history">Session history</string>
+    <string name="history_title">Session history</string>
+    <string name="history_empty">No session events have been recorded yet.</string>
+    <string name="history_no_recent_event">No recent event</string>
+    <string name="history_unavailable">History is temporarily unavailable.</string>
+    <string name="history_clear">Clear history</string>
+    <string name="history_clear_title">Clear local history?</string>
+    <string name="history_clear_body">This removes the local timeline from OdinDuo. It does not affect protection or Android settings.</string>
+    <string name="history_cleared">Session history cleared.</string>
+    <string name="connection_test">Connection &amp; wake test</string>
+    <string name="connection_test_title">Connection &amp; wake test</string>
+    <string name="connection_test_body">Run this short manual check while protection is active. Tick only the steps that worked. OdinDuo records the result without saving touch coordinates.</string>
+    <string name="test_touch_now">Touch works while connected</string>
+    <string name="test_touch_wake">Touch still works after screen-off and wake</string>
+    <string name="test_touch_reconnect">Touch still works after disconnect and reconnect</string>
+    <string name="connection_test_save">Save result</string>
+    <string name="connection_test_result">Connection test · Passed checks: %1$d/%2$d</string>
+    <string name="notification_alert_channel">OdinDuo recovery alerts</string>
 </resources>

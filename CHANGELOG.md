@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.0 — 2026-10-08
+
+- Add a clearer Material You dashboard with live session duration and an honest whole-device battery reading when Android provides one.
+- Add a bounded local session history and include it in the redacted support export. History failures never interrupt protection.
+- Add a guided first setup with direct access to setup checks, app settings and the Quick Settings tile.
+- Add a bounded manual connection, sleep/wake and reconnect checklist. Results are stored without touch coordinates.
+- Separate quiet ongoing protection notifications from actionable recovery alerts, while keeping Android's notification controls in charge.
+- Add optional Dutch per-app language support while keeping English as the default.
+- Raise the release to version code 20 while preserving the existing package and update-compatible signing certificate.
+
 ## 1.1.0 — 2026-10-06
 
 - Require fresh helper health and current atomic power observations before showing Protected; noisy logs no longer stop a healthy session.
