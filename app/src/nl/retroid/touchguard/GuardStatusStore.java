@@ -15,10 +15,14 @@ final class GuardStatusStore {
         final boolean running;
         final String state;
         final String text;
-        Status(boolean running, String state, String text) {
+        final long changedAt;
+        final long sessionStartedAt;
+        Status(boolean running, String state, String text, long changedAt, long sessionStartedAt) {
             this.running = running;
             this.state = state;
             this.text = text;
+            this.changedAt = changedAt;
+            this.sessionStartedAt = sessionStartedAt;
         }
     }
 
@@ -31,7 +35,15 @@ final class GuardStatusStore {
         FileOutputStream output = null;
         try {
             String stat = new String(Files.readAllBytes(new File("/proc/self/stat").toPath()), StandardCharsets.UTF_8);
+            long now = System.currentTimeMillis();
+            long sessionStartedAt = now;
+            try {
+                JSONObject previous = new JSONObject(new String(file(context).readFully(), StandardCharsets.UTF_8));
+                long previousStart = previous.optLong("sessionStartedAt", 0L);
+                if (previousStart > 0L && previous.optBoolean("running")) sessionStartedAt = previousStart;
+            } catch (Exception ignored) { }
             JSONObject value = new JSONObject().put("running", running).put("state", state).put("status", text)
+                    .put("changedAt", now).put("sessionStartedAt", sessionStartedAt)
                     .put("pid", Process.myPid()).put("start", ProcessIdentity.startTicks(stat));
             output = file.startWrite();
             output.write(value.toString().getBytes(StandardCharsets.UTF_8));
@@ -49,12 +61,14 @@ final class GuardStatusStore {
             boolean running = value.optBoolean("running") && (liveProcess(value) || VendorBridge.guardAlive(context));
             String state = value.optString("state", "idle");
             String text = value.optString("status", context.getString(R.string.status_idle));
+            long changedAt = value.optLong("changedAt", 0L);
+            long sessionStartedAt = value.optLong("sessionStartedAt", changedAt);
             if (!running && value.optBoolean("running")) {
-                return new Status(false, "idle", context.getString(R.string.status_restarted));
+                return new Status(false, "idle", context.getString(R.string.status_restarted), changedAt, sessionStartedAt);
             }
-            return new Status(running, state, text);
+            return new Status(running, state, text, changedAt, sessionStartedAt);
         } catch (Exception exception) {
-            return new Status(false, "idle", context.getString(R.string.status_idle));
+            return new Status(false, "idle", context.getString(R.string.status_idle), 0L, 0L);
         }
     }
 

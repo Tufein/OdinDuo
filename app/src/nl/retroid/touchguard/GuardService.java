@@ -16,6 +16,7 @@ import java.util.concurrent.CountDownLatch;
 
 public final class GuardService extends Service {
     private static final String CHANNEL = "touch-guard";
+    private static final String ALERT_CHANNEL = "touch-alerts";
     static final String STOP = "nl.retroid.touchguard.STOP";
     static final String AUTOMATIC_ON = "nl.retroid.touchguard.AUTOMATIC_ON";
     static final String AUTOMATIC_OFF = "nl.retroid.touchguard.AUTOMATIC_OFF";
@@ -115,6 +116,8 @@ public final class GuardService extends Service {
         worker = new Handler(thread.getLooper());
         ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).createNotificationChannel(
                 new NotificationChannel(CHANNEL, getString(R.string.notification_channel), NotificationManager.IMPORTANCE_LOW));
+        ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).createNotificationChannel(
+                new NotificationChannel(ALERT_CHANNEL, getString(R.string.notification_alert_channel), NotificationManager.IMPORTANCE_DEFAULT));
         EventLog.write(this, "power service created; Android " + Build.VERSION.RELEASE);
     }
 
@@ -245,7 +248,7 @@ public final class GuardService extends Service {
             PendingIntent open = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_IMMUTABLE);
             PendingIntent retry = PendingIntent.getForegroundService(this, 2,
                     new Intent(this, GuardService.class), PendingIntent.FLAG_IMMUTABLE);
-            Notification failure = new Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_touch)
+            Notification failure = new Notification.Builder(this, ALERT_CHANNEL).setSmallIcon(R.drawable.ic_touch)
                     .setContentTitle(getString(R.string.failure_title)).setContentText(finalStatus)
                     .setStyle(new Notification.BigTextStyle().bigText(finalStatus))
                     .setContentIntent(open).setAutoCancel(true).setOnlyAlertOnce(true)

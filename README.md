@@ -8,9 +8,9 @@ OdinDuo applies a temporary USB power-management workaround through the stock AY
 
 ## Download
 
-Install [OdinDuo 1.1.0](https://github.com/Tufein/OdinDuo/releases/tag/v1.1.0) from the release assets. The non-debuggable APK keeps the same package and signing certificate and updates 1.0.0 or the 1.1 betas in place, without uninstalling. A SHA-256 checksum is included; private signing keys are never published.
+The current published stable release is [OdinDuo 1.1.0](https://github.com/Tufein/OdinDuo/releases/tag/v1.1.0). Version 2.0.0 is built locally and awaiting stock-device validation; its stable release has not been published yet. The non-debuggable 2.0.0 APK keeps the same package and signing certificate for an in-place update from 1.1.0. Private signing keys are never published.
 
-**After updating, Stop protection once and enable Auto protect again** to start the updated helper. Version 1.1 adds current helper health, bounded recovery, a failure notification with Retry protection, an Android Quick Settings switch and setup checks. See [the release notes and validation](docs/releases/1.1.0.md). Earlier 1.1 beta releases remain prereleases.
+**After updating, Stop protection once and enable Auto protect again** to start the updated helper. Version 2.0 adds session duration, bounded local history, guided setup, a manual connection and wake checklist, clearer recovery notifications and optional Dutch per-app language support. See [the 2.0.0 release notes](docs/releases/2.0.0.md).
 
 ## Use
 
@@ -25,7 +25,9 @@ Android may ask for notification permission. Allow it to see background status a
 
 **Appearance** lets you choose system, light or dark mode. **Help & diagnostics → Share diagnostics** exports only the app’s bounded logs and basic device/version information through Android’s share sheet. Nothing is sent automatically; the app has no internet permission.
 
-In **1.1**, open **Help & diagnostics → Check setup → Add quick tile** to add OdinDuo to Android Quick Settings. Tapping the tile when off enables Auto protect; tapping it while protection is running stops protection and turns Auto protect off. Its subtitle follows the actual protection state. Long-press opens OdinDuo. Locked devices require unlocking before a tap changes protection. Status changes request a system tile refresh, including when the panel is closed; the tile has no periodic polling loop.
+The dashboard shows the current session duration and the Odin’s whole-device battery level when Android provides it. **Session history** keeps a bounded local timeline and can be cleared. **Connection & wake test** is a manual checklist for touch while connected, after sleep/wake and after reconnect; it records only which checks passed.
+
+Open **Check setup** to add OdinDuo to Android Quick Settings. Tapping the tile when off enables Auto protect; tapping it while protection is running stops protection and turns Auto protect off. Its subtitle follows the actual protection state. Long-press opens OdinDuo. Locked devices require unlocking before a tap changes protection. Status changes request a system tile refresh, including when the panel is closed; the tile has no periodic polling loop.
 
 **Check setup** reports the stock AYN service, primary Android user, notification permission, Android background restrictions, battery optimisation and Auto protect setting. **App settings** opens Android’s per-app settings so you can adjust restrictions yourself. These checks also appear in shared diagnostics. The helper paths support the primary Android user; other profiles cannot start protection. Notification permission is requested once rather than again after a theme change.
 
@@ -81,7 +83,7 @@ adb -s YOUR_ODIN_SERIAL install -r app/build/OdinDuo.apk
 adb -s YOUR_ODIN_SERIAL shell am start -n nl.retroid.touchguard/.MainActivity
 ```
 
-The app remains `nl.retroid.touchguard` so OdinDuo can update the original installation. The current version is **1.1.0**, with version code **10** and target SDK **36**.
+The app remains `nl.retroid.touchguard` so OdinDuo can update the original installation. The current version is **2.0.0**, with version code **20** and target SDK **36**.
 
 The canonical guard in `tools/pserver-power-guard.sh` and its stop helper in `tools/pserver-power-stop.sh` are bundled as generated resources during the build. Generated resources, APKs, device captures and signing keys are excluded from Git. `./app/build.sh` produces a debug APK for development. To build the non-debuggable release:
 
