@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.0.1 — in development
+
+- Bind status and helper health to the current Android boot, and record the root worker's boot and process start time.
+- Reject restoration records from a previous boot before signalling a process or writing USB settings. Keep malformed boot records pending and isolate delayed watchdogs from replacement sessions.
+- Measure session duration with elapsed time, including sleep, so changing the clock does not change the duration.
+- Resolve persisted status and notification actions in the current app language without restarting healthy protection.
+- Bound history storage by entries, event length and encoded bytes, redact session tokens, and limit lock waiting. Report failed clearing instead of showing a false success.
+- Show first-run setup only while its activity is resumed and the notification permission request has finished.
+- Add emulator instrumentation for cross-process history, storage failures and language changes; compile its APK in CI.
+- Build version code 21 with the existing update-compatible certificate. Physical Odin 3 validation is pending.
+
 ## 2.0.0 — 2026-10-08
 
 - Add a clearer Material You dashboard with live session duration and an honest whole-device battery reading when Android provides one.

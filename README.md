@@ -14,6 +14,8 @@ The 2.0.0 debug/release builds, Android lint and GitHub CI pass. The new version
 
 **After updating, Stop protection once and enable Auto protect again** to start the updated helper. Version 2.0 adds session duration, bounded local history, guided setup, a manual connection and wake checklist, clearer recovery notifications and optional Dutch per-app language support. See [the 2.0.0 release notes](docs/releases/2.0.0.md).
 
+Development is now on **2.0.1**: boot/session recovery, accurate elapsed timing, safer history and live English/Dutch status. This is a candidate, pending physical Odin validation. See [candidate notes](docs/releases/2.0.1.md) and the [roadmap](docs/roadmap.md).
+
 ## Use
 
 1. Open **OdinDuo** and turn on **Auto protect**, or tap **Start protection** for a single session.
@@ -85,7 +87,7 @@ adb -s YOUR_ODIN_SERIAL install -r app/build/OdinDuo.apk
 adb -s YOUR_ODIN_SERIAL shell am start -n nl.retroid.touchguard/.MainActivity
 ```
 
-The app remains `nl.retroid.touchguard` so OdinDuo can update the original installation. The current version is **2.0.0**, with version code **20** and target SDK **36**.
+The app remains `nl.retroid.touchguard` so OdinDuo can update the original installation. The source candidate is **2.0.1**, with version code **21** and target SDK **36**; the published full release is 2.0.0.
 
 The canonical guard in `tools/pserver-power-guard.sh` and its stop helper in `tools/pserver-power-stop.sh` are bundled as generated resources during the build. Generated resources, APKs, device captures and signing keys are excluded from Git. `./app/build.sh` produces a debug APK for development. To build the non-debuggable release:
 
@@ -104,7 +106,7 @@ For an existing installation, preserve its signing key when building updates. Th
 ./gradlew :app:lintRelease
 ```
 
-GitHub Actions runs `assembleDebug`, `lintDebug` and `tools/check.sh` for every pull request and pushes to main or Codex branches. The workflow pins actions to commit hashes, installs SDK 36 and build-tools 36.0.0, and requires no release signing key. Its debug artifacts are retained for seven days and use a development certificate; use the release assets for updates to an installed public version. The protected main branch requires an up-to-date PR with the Android build and checks result from GitHub Actions, including for administrators.
+GitHub Actions builds both the debug and instrumentation APKs, runs `lintDebug` and `tools/check.sh` for every pull request and pushes to main or Codex branches. The workflow pins actions to commit hashes, installs SDK 36 and build-tools 36.0.0, and requires no release signing key. Its debug artifacts are retained for seven days and use a development certificate; use the release assets for updates to an installed public version. Instrumentation is compiled in CI; run its storage/language suite only on a disposable emulator as described in the [2.0.1 notes](docs/releases/2.0.1.md). The protected main branch requires an up-to-date PR with the Android build and checks result from GitHub Actions, including for administrators.
 
 The checks verify process identity parsing, rejection of truncated records, shell argument quoting without command substitution, USB descriptor/target validation, and log parsing that honours the latest power state and gives restoration failures precedence. The shell integration test runs the real guard against temporary fake proc/USB files: process loss preserves power settings, a reused PID is rejected, a new service adopts the session without resetting USB, explicit Stop restores promptly, and an expired restart grace restores the original settings. It also checks detach acknowledgements across three connection leases, rejects invalid acknowledgement tokens and ensures pending snapshots cannot be acknowledged as successful. It never writes host or connected-device power settings. Emulator checks cannot establish that physical Retroid touch survives sleep.
 

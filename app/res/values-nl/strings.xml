@@ -114,6 +114,7 @@ Zet adaptieve helderheid uit op de Odin als je de afstelling constant wilt houde
     <string name="history_clear_title">Lokale geschiedenis wissen?</string>
     <string name="history_clear_body">Dit verwijdert de lokale tijdlijn uit OdinDuo. Bescherming en Android-instellingen worden niet gewijzigd.</string>
     <string name="history_cleared">Sessiegeschiedenis gewist.</string>
+    <string name="history_clear_error">Geschiedenis kon niet worden gewist. Probeer opnieuw.</string>
     <string name="connection_test">Verbindings- en wektest</string>
     <string name="connection_test_title">Verbindings- en wektest</string>
     <string name="connection_test_body">Voer deze korte handmatige controle uit terwijl bescherming actief is. Vink alleen aan wat werkte. OdinDuo slaat geen touchcoördinaten op.</string>

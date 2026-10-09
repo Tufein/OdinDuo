@@ -16,6 +16,8 @@ import java.util.concurrent.Callable;
 /** Small, bounded local timeline used by the dashboard and support export. */
 final class HistoryStore {
     private static final int MAX_ENTRIES = 80;
+    private static final long MAX_BYTES = 256 * 1024;
+    private static final int MAX_EVENT_LENGTH = 1024;
     private static final String FILE_NAME = "session-history.json";
 
     private HistoryStore() {}
@@ -28,7 +30,9 @@ final class HistoryStore {
         try {
             locked(context, () -> {
                 JSONArray entries = read(context);
-                entries.put(new JSONObject().put("at", System.currentTimeMillis()).put("event", event));
+                String safe = event == null ? "" : event.replaceAll("(?i)\\b[a-f0-9]{32}\\b", "[session]");
+                if (safe.length() > MAX_EVENT_LENGTH) safe = safe.substring(0, MAX_EVENT_LENGTH) + "…";
+                entries.put(new JSONObject().put("at", System.currentTimeMillis()).put("event", safe));
                 while (entries.length() > MAX_ENTRIES) entries.remove(0);
                 write(context, entries);
                 return null;
@@ -73,32 +77,54 @@ final class HistoryStore {
         catch (Exception exception) { return "[]"; }
     }
 
-    static synchronized void clear(Context context) {
-        try { locked(context, () -> { write(context, new JSONArray()); return null; }); }
-        catch (Exception exception) { Log.w("RetroidTouchGuard", "Cannot clear session history", exception); }
+    static synchronized boolean clear(Context context) {
+        try { locked(context, () -> { write(context, new JSONArray()); return null; }); return true; }
+        catch (Exception exception) {
+            Log.w("RetroidTouchGuard", "Cannot clear session history", exception);
+            return false;
+        }
     }
 
     private static JSONArray read(Context context) throws Exception {
         File target = file(context).getBaseFile();
-        if (!target.isFile()) return new JSONArray();
-        return new JSONArray(new String(file(context).readFully(), StandardCharsets.UTF_8));
+        File backup = new File(target.getPath() + ".bak");
+        if (!target.isFile() && !backup.isFile()) return new JSONArray();
+        if (target.length() > MAX_BYTES || backup.length() > MAX_BYTES)
+            throw new IllegalStateException("History exceeds its size limit");
+        JSONArray entries = new JSONArray(new String(file(context).readFully(), StandardCharsets.UTF_8));
+        while (entries.length() > MAX_ENTRIES) entries.remove(0);
+        return entries;
     }
 
     /** The activity and guard use separate processes, so Java monitors alone cannot serialize writes. */
     private static <T> T locked(Context context, Callable<T> operation) throws Exception {
         File lockFile = new File(context.getFilesDir(), FILE_NAME + ".lock");
         try (FileOutputStream output = new FileOutputStream(lockFile, true);
-                FileChannel channel = output.getChannel(); FileLock lock = channel.lock()) {
-            return operation.call();
+                FileChannel channel = output.getChannel()) {
+            long deadline = android.os.SystemClock.uptimeMillis() + 100;
+            do {
+                FileLock lock = channel.tryLock();
+                if (lock != null) {
+                    try (FileLock held = lock) { return operation.call(); }
+                }
+                Thread.sleep(10);
+            } while (android.os.SystemClock.uptimeMillis() < deadline);
+            throw new IllegalStateException("History is busy");
         }
     }
 
     private static void write(Context context, JSONArray entries) throws Exception {
+        byte[] encoded = entries.toString().getBytes(StandardCharsets.UTF_8);
+        // Escaped control characters and older long events can exceed the per-event budget.
+        while (encoded.length > MAX_BYTES && entries.length() > 0) {
+            entries.remove(0);
+            encoded = entries.toString().getBytes(StandardCharsets.UTF_8);
+        }
         AtomicFile target = file(context);
         FileOutputStream output = null;
         try {
             output = target.startWrite();
-            output.write(entries.toString().getBytes(StandardCharsets.UTF_8));
+            output.write(encoded);
             target.finishWrite(output);
         } catch (Exception exception) {
             if (output != null) target.failWrite(output);

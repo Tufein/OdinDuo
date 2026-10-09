@@ -8,8 +8,9 @@ android {
         applicationId 'nl.retroid.touchguard'
         minSdk 33
         targetSdk 36
-        versionCode 20
-        versionName '2.0.0'
+        versionCode 21
+        versionName '2.0.1'
+        testInstrumentationRunner 'nl.retroid.touchguard.ReliabilityInstrumentation'
     }
     sourceSets {
         main {
@@ -17,8 +18,11 @@ android {
             java.srcDirs = ['src']
             res.srcDirs = ['res', layout.buildDirectory.dir('generated/guard-res')]
         }
+        androidTest { java.srcDirs = ['androidTest'] }
     }
     buildFeatures { buildConfig true }
+    // Always include both languages, including in any future App Bundle distribution.
+    bundle { language { enableSplit = false } }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17

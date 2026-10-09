@@ -30,7 +30,8 @@ public final class GuardService extends Service {
     private boolean automatic;
     private final GuardHealth health = new GuardHealth();
     private String latestStatus = "";
-    private String finalStatus;
+    private int finalResource = R.string.status_stopped;
+    private Object[] finalArguments = new Object[0];
     private String finalState = "idle";
 
     private final Runnable poll = new Runnable() {
@@ -46,7 +47,7 @@ public final class GuardService extends Service {
                             SystemClock.uptimeMillis());
                     if (heartbeat == GuardHealth.State.LOST) {
                         if (!automatic || !health.allowRecovery(SystemClock.uptimeMillis())) {
-                            finish(getString(R.string.status_helper_lost), "error");
+                            finish(R.string.status_helper_lost, "error");
                             return;
                         }
                         status("recovering", R.string.status_recovering);
@@ -65,16 +66,16 @@ public final class GuardService extends Service {
                 }
                 switch (observation) {
                     case ERROR:
-                        finish(getString(R.string.status_guard_error), "error");
+                        finish(R.string.status_guard_error, "error");
                         return;
                     case STOPPED:
                         if (!automatic) {
-                            finish(getString(R.string.status_detached), "idle");
+                            finish(R.string.status_detached, "idle");
                             return;
                         }
                         if (!log.contains("RDS detached/replaced; restoring")
                                 && !health.allowRecovery(SystemClock.uptimeMillis())) {
-                            finish(getString(R.string.status_helper_lost), "error");
+                            finish(R.string.status_helper_lost, "error");
                             return;
                         }
                         // Wait for complete restoration before starting the next connection lease.
@@ -92,7 +93,7 @@ public final class GuardService extends Service {
                         break;
                     case EMPTY:
                         if (health.startupExpired(SystemClock.uptimeMillis())) {
-                            finish(getString(R.string.status_launch_timeout), "error");
+                            finish(R.string.status_launch_timeout, "error");
                             return;
                         }
                         status("starting", R.string.status_starting);
@@ -101,7 +102,7 @@ public final class GuardService extends Service {
                 worker.postDelayed(this, 1000);
             } catch (Exception exception) {
                 EventLog.write(GuardService.this, "guard poll error " + exception);
-                finish(getString(R.string.status_log_error), "error");
+                finish(R.string.status_log_error, "error");
             }
         }
     };
@@ -110,7 +111,6 @@ public final class GuardService extends Service {
         super.onCreate();
         startupBarrier = pendingRestoration;
         automatic = GuardPreferences.automatic(this);
-        finalStatus = getString(R.string.status_stopped);
         thread = new HandlerThread("retroid-power-guard");
         thread.start();
         worker = new Handler(thread.getLooper());
@@ -128,7 +128,7 @@ public final class GuardService extends Service {
                 try { GuardPreferences.setAutomatic(this, false); automatic = false; }
                 catch (Exception exception) {
                     EventLog.write(this, "cannot save automatic setting " + exception);
-                    finalStatus = getString(R.string.status_settings_error);
+                    finalResource = R.string.status_settings_error;
                     finalState = "error";
                 }
                 stopSelf();
@@ -158,12 +158,12 @@ public final class GuardService extends Service {
             }
         } catch (RuntimeException exception) {
             EventLog.write(this, "foreground service denied " + exception);
-            finalStatus = getString(R.string.status_fgs_error);
+            finalResource = R.string.status_fgs_error;
             finalState = "error";
             stopSelf();
             return START_NOT_STICKY;
         }
-        GuardStatusStore.write(this, true, "starting", getString(R.string.status_starting));
+        GuardStatusStore.write(this, true, "starting", R.string.status_starting);
         worker.post(() -> {
             if (stopped || ending) return;
             try {
@@ -178,7 +178,7 @@ public final class GuardService extends Service {
                 launchGuard();
             } catch (Exception exception) {
                 EventLog.write(this, "vendor launch failed " + exception);
-                finish(getString(R.string.status_start_error, exception.getMessage()), "error");
+                finish(R.string.status_start_error, "error", exception.getMessage());
             }
         });
         return START_STICKY;
@@ -191,7 +191,7 @@ public final class GuardService extends Service {
             EventLog.write(this, "automatic protection " + (enabled ? "enabled" : "disabled"));
             GuardLogState.State observed = VendorBridge.heartbeat(this).observation(VendorBridge.readLog(this));
             if (!enabled && observed != GuardLogState.State.ACTIVE) {
-                finish(getString(R.string.status_stopped), "idle");
+                finish(R.string.status_stopped, "idle");
                 return false;
             }
             if (enabled && observed == GuardLogState.State.WAITING) {
@@ -200,7 +200,7 @@ public final class GuardService extends Service {
             return true;
         } catch (Exception exception) {
             EventLog.write(this, "automatic setting failed " + exception);
-            finish(getString(R.string.status_settings_error), "error");
+            finish(R.string.status_settings_error, "error");
             return false;
         }
     }
@@ -217,27 +217,29 @@ public final class GuardService extends Service {
         super.onTaskRemoved(rootIntent);
     }
 
-    private void finish(String text, String state) {
+    private void finish(int resource, String state, Object... args) {
         ending = true;
-        finalStatus = text;
+        finalResource = resource;
+        finalArguments = args;
         finalState = state;
         stopSelf();
     }
 
     private Notification notification(String text) {
+        android.content.Context language = AppLanguage.current(this);
         PendingIntent open = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_IMMUTABLE);
         PendingIntent stop = PendingIntent.getService(this, 1, new Intent(this, GuardService.class).setAction(STOP), PendingIntent.FLAG_IMMUTABLE);
         return new Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_touch)
-                .setContentTitle(getString(R.string.app_name)).setContentText(text)
+                .setContentTitle(language.getString(R.string.app_name)).setContentText(text)
                 .setContentIntent(open).setOngoing(true).setOnlyAlertOnce(true)
-                .addAction(new Notification.Action.Builder(null, getString(R.string.notification_stop), stop).build()).build();
+                .addAction(new Notification.Action.Builder(null, language.getString(R.string.notification_stop), stop).build()).build();
     }
 
     private void status(String state, int resource) {
-        String text = getString(resource);
+        String text = AppLanguage.current(this).getString(resource);
         if (text.equals(latestStatus)) return;
         latestStatus = text;
-        GuardStatusStore.write(this, true, state, text);
+        GuardStatusStore.write(this, true, state, resource);
         ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).notify(1, notification(text));
         EventLog.write(this, "status " + text);
     }
@@ -245,14 +247,16 @@ public final class GuardService extends Service {
     private void showFailureNotification() {
         if (!"error".equals(finalState)) return;
         try {
+            android.content.Context language = AppLanguage.current(this);
+            String finalStatus = language.getString(finalResource, finalArguments);
             PendingIntent open = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_IMMUTABLE);
             PendingIntent retry = PendingIntent.getForegroundService(this, 2,
                     new Intent(this, GuardService.class), PendingIntent.FLAG_IMMUTABLE);
             Notification failure = new Notification.Builder(this, ALERT_CHANNEL).setSmallIcon(R.drawable.ic_touch)
-                    .setContentTitle(getString(R.string.failure_title)).setContentText(finalStatus)
+                    .setContentTitle(language.getString(R.string.failure_title)).setContentText(finalStatus)
                     .setStyle(new Notification.BigTextStyle().bigText(finalStatus))
                     .setContentIntent(open).setAutoCancel(true).setOnlyAlertOnce(true)
-                    .addAction(new Notification.Action.Builder(null, getString(R.string.retry_protection), retry).build()).build();
+                    .addAction(new Notification.Action.Builder(null, language.getString(R.string.retry_protection), retry).build()).build();
             ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).notify(2, failure);
         } catch (RuntimeException exception) {
             EventLog.write(this, "cannot show protection failure " + exception);
@@ -264,7 +268,7 @@ public final class GuardService extends Service {
         CountDownLatch restoration = new CountDownLatch(1);
         pendingRestoration = restoration;
         worker.removeCallbacksAndMessages(null);
-        GuardStatusStore.write(this, true, "stopping", getString(R.string.status_stopping));
+        GuardStatusStore.write(this, true, "stopping", R.string.status_stopping);
         worker.post(() -> {
             try {
                 VendorBridge.stop(this);
@@ -272,12 +276,13 @@ public final class GuardService extends Service {
                 // RESTORE FAILED line must not override a later successful recovery.
             } catch (Exception exception) {
                 EventLog.write(this, "vendor stop failed " + exception);
-                finalStatus = getString(R.string.status_stop_error);
+                finalResource = R.string.status_stop_error;
+                finalArguments = new Object[0];
                 finalState = "error";
             }
-            GuardStatusStore.write(this, false, finalState, finalStatus);
+            GuardStatusStore.write(this, false, finalState, finalResource, finalArguments);
             showFailureNotification();
-            EventLog.write(this, "service stopped: " + finalStatus);
+            EventLog.write(this, "service stopped: " + AppLanguage.english(this).getString(finalResource, finalArguments));
             restoration.countDown();
             thread.quitSafely();
         });

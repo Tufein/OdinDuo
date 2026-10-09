@@ -49,6 +49,14 @@ public final class MainActivity extends AppCompatActivity {
     private boolean updatingSwitch;
     private Boolean pendingAutomatic;
     private long modeRequestedAt;
+    private boolean notificationRequestPending;
+    private final Runnable firstSetup = () -> {
+        if (!isFinishing() && !isDestroyed() && !notificationRequestPending
+                && !getPreferences(MODE_PRIVATE).getBoolean("guided_setup_seen", false)) {
+            showSetup();
+            getPreferences(MODE_PRIVATE).edit().putBoolean("guided_setup_seen", true).apply();
+        }
+    };
 
     private final Runnable refresh = new Runnable() {
         @Override public void run() {
@@ -100,13 +108,10 @@ public final class MainActivity extends AppCompatActivity {
         if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
                 && !getSharedPreferences("appearance", MODE_PRIVATE).getBoolean("notifications_asked", false)) {
             getSharedPreferences("appearance", MODE_PRIVATE).edit().putBoolean("notifications_asked", true).apply();
+            notificationRequestPending = true;
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
         }
         handleIntent(getIntent());
-        if (!getPreferences(MODE_PRIVATE).getBoolean("guided_setup_seen", false)) {
-            getPreferences(MODE_PRIVATE).edit().putBoolean("guided_setup_seen", true).apply();
-            handler.postDelayed(this::showSetup, 450);
-        }
     }
 
     private void refreshStatus() {
@@ -257,8 +262,9 @@ public final class MainActivity extends AppCompatActivity {
                         new MaterialAlertDialogBuilder(this).setTitle(R.string.history_clear_title)
                                 .setMessage(R.string.history_clear_body)
                                 .setPositiveButton(R.string.history_clear, (confirm, ignored) -> {
-                                    HistoryStore.clear(this);
-                                    Toast.makeText(this, R.string.history_cleared, Toast.LENGTH_SHORT).show();
+                                    boolean cleared = HistoryStore.clear(this);
+                                    Toast.makeText(this, cleared ? R.string.history_cleared : R.string.history_clear_error,
+                                            Toast.LENGTH_SHORT).show();
                                 }).setNegativeButton(android.R.string.cancel, null).show())
                 .setNegativeButton(android.R.string.cancel, null).show();
     }
@@ -298,9 +304,8 @@ public final class MainActivity extends AppCompatActivity {
 
     private String sessionSummary(GuardStatusStore.Status snapshot) {
         String battery = batterySummary();
-        if (snapshot.running && snapshot.sessionStartedAt > 0L) {
-            long elapsed = Math.max(0L, System.currentTimeMillis() - snapshot.sessionStartedAt);
-            return getString(R.string.session_summary, DateUtils.formatElapsedTime(elapsed / 1000L), battery);
+        if (snapshot.running && snapshot.sessionElapsed >= 0L) {
+            return getString(R.string.session_summary, DateUtils.formatElapsedTime(snapshot.sessionElapsed / 1000L), battery);
         }
         return getString(R.string.session_latest, HistoryStore.latest(this), battery);
     }
@@ -346,7 +351,7 @@ public final class MainActivity extends AppCompatActivity {
                     + "\nDevice: " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL
                     + "\nAuto protect: " + GuardPreferences.automatic(this) + "\nState: " + snapshot.state
                     + "\n" + snapshot.text + "\n\nPower guard\n" + VendorBridge.readLog(this);
-            report += "\n\nSetup checks\n" + SetupReport.read(this);
+            report += "\n\nSetup checks\n" + SetupReport.read(AppLanguage.english(this));
             report += "\n\nSession history\n" + HistoryStore.export(this);
             File events = new File(getFilesDir(), "guard-events.txt");
             if (events.isFile()) {
@@ -386,6 +391,19 @@ public final class MainActivity extends AppCompatActivity {
         GuardStatusStore.Status snapshot = GuardStatusStore.read(this);
         if (GuardPreferences.automatic(this) && !snapshot.running && !"error".equals(snapshot.state)) startGuard();
         handler.post(refresh);
+        handler.postDelayed(firstSetup, 450);
     }
-    @Override protected void onPause() { handler.removeCallbacks(refresh); super.onPause(); }
+    @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode == 1) {
+            notificationRequestPending = false;
+            if (getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED))
+                handler.postDelayed(firstSetup, 450);
+        }
+    }
+    @Override protected void onPause() {
+        handler.removeCallbacks(refresh);
+        handler.removeCallbacks(firstSetup);
+        super.onPause();
+    }
 }

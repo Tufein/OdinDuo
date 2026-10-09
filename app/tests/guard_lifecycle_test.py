@@ -2,6 +2,7 @@
 """Run the real shell guard against fake proc/USB files; never touch host/device power settings."""
 from pathlib import Path
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -15,6 +16,9 @@ with tempfile.TemporaryDirectory(prefix='odinduo-guard-') as directory:
     proc = root / 'proc'
     proc.mkdir()
     (proc / 'uptime').write_text('100.0 0.0\n')
+    boot_id = '11111111-1111-1111-1111-111111111111'
+    (proc / 'sys/kernel/random').mkdir(parents=True)
+    (proc / 'sys/kernel/random/boot_id').write_text(boot_id + '\n')
     usb = root / 'sys/devices/platform/soc/a600000.ssusb'
     rds = usb / 'a600000.dwc3/xhci-hcd.0.auto/usb1/1-1'
     controls = []
@@ -38,11 +42,17 @@ with tempfile.TemporaryDirectory(prefix='odinduo-guard-') as directory:
     text = source.read_text()
     replacements = [('/data/user/0/nl.retroid.touchguard/files', str(app)),
                      ('/data/local/tmp', str(root / 'data/local/tmp')),
-                     ('/sys/', str(root / 'sys') + '/'),
                      ('/proc/', str(proc) + '/'),
                      ('/system/bin/sh', '/bin/sh')]
+    text = re.sub(r'(?<!/proc)/sys/', str(root / 'sys') + '/', text)
     for old, new in replacements:
         text = text.replace(old, new)
+    # Model the real worker's own proc identity on hosts without /proc (including macOS).
+    worker_fields = 'S ' + ' '.join(['0'] * 18) + ' 9001 ' + ' '.join(['0'] * 20)
+    prefix = (f'mkdir -p "{proc}/$$"\n'
+              f'printf "%s\\n" "$$ (power guard) {worker_fields}" > "{proc}/$$/stat"\n'
+              f'printf "%s\\000" "/bin/sh" "$0" "$@" > "{proc}/$$/cmdline"\n')
+    text = text.replace('#!/bin/sh\n', '#!/bin/sh\n' + prefix, 1)
     script.write_text(text)
     stop_script = app / 'power-stop.sh'
     stop_text = source.with_name('pserver-power-stop.sh').read_text()
@@ -188,6 +198,72 @@ with tempfile.TemporaryDirectory(prefix='odinduo-guard-') as directory:
     assert retried.returncode == 0 and not state.exists(), 'Confirmed restoration could not be retried'
     assert target.read_text().strip() == 'auto', 'Retry lost the original setting'
     assert f'STOP acknowledged {retried_token} result=0' in log.read_text()
+    # A previous boot's snapshots must not signal a reused PID or change current USB controls.
+    unrelated = subprocess.Popen(['sleep', '30'])
+    unrelated_proc = proc / str(unrelated.pid)
+    unrelated_proc.mkdir()
+    unrelated_stat = f'{unrelated.pid} (unrelated process) S ' + ' '.join(['0'] * 18) + ' 42 ' + ' '.join(['0'] * 20)
+    (unrelated_proc / 'stat').write_text(unrelated_stat)
+    (unrelated_proc / 'cmdline').write_bytes(f'/bin/sh\0{script}\0--watch\0'.encode())
+    state.mkdir()
+    target.write_text('on\n')
+    (state / 'boot').write_text('22222222-2222-2222-2222-222222222222\n')
+    (state / 'count').write_text('1\n')
+    (state / 'saved-0').write_text(f'{target}\nauto\nparent\n')
+    (state / 'pid').write_text(str(unrelated.pid) + '\n')
+    (state / 'pid-start').write_text('42\n')
+    previous_boot = subprocess.run(['/bin/sh', str(stop_script), 'd' * 32], env=env,
+                                   capture_output=True, text=True, timeout=5)
+    assert previous_boot.returncode == 0 and not state.exists()
+    assert target.read_text().strip() == 'on', 'Previous-boot restoration changed this boot\'s USB power'
+    assert 'no process signals or USB writes' in log.read_text()
+    assert unrelated.poll() is None, 'Previous-boot Stop signalled a reused process ID'
+    # Same-boot process-ID reuse also cannot signal the replacement process.
+    state.mkdir()
+    (state / 'boot').write_text(boot_id + '\n')
+    (state / 'count').write_text('1\n')
+    (state / 'saved-0').write_text(f'{target}\nauto\nparent\n')
+    (state / 'pid').write_text(str(unrelated.pid) + '\n')
+    (state / 'pid-start').write_text('41\n')
+    reused_worker = subprocess.run(['/bin/sh', str(stop_script), 'd' * 32], env=env,
+                                  capture_output=True, text=True, timeout=5)
+    assert reused_worker.returncode == 0 and not state.exists()
+    assert unrelated.poll() is None, 'Worker start-time mismatch signalled an unrelated process'
+    unrelated.terminate()
+    unrelated.wait(timeout=3)
+    target.write_text('auto\n')
+    # Invalid boot records retain pending snapshots and block successful cleanup.
+    state.mkdir()
+    (state / 'count').write_text('1\n')
+    (state / 'saved-0').write_text(f'{target}\nauto\nparent\n')
+    for invalid_boot in ['invalid', '-' * 36]:
+        (state / 'boot').write_text(invalid_boot + '\n')
+        malformed = subprocess.run(['/bin/sh', str(stop_script), 'e' * 32], env=env,
+                                   capture_output=True, text=True, timeout=5)
+        assert malformed.returncode == 1 and (state / 'saved-0').exists()
+    (state / 'boot').write_text(boot_id + '\n')
+    (proc / 'sys/kernel/random/boot_id').write_text('invalid\n')
+    malformed_current = subprocess.run(['/bin/sh', str(stop_script), 'e' * 32], env=env,
+                                       capture_output=True, text=True, timeout=5)
+    assert malformed_current.returncode == 1 and (state / 'saved-0').exists()
+    (proc / 'sys/kernel/random/boot_id').write_text(boot_id + '\n')
+    recovered = subprocess.run(['/bin/sh', str(stop_script), 'e' * 32], env=env,
+                               capture_output=True, text=True, timeout=5)
+    assert recovered.returncode == 0 and not state.exists()
+    # Delayed watchdogs must not touch a replacement connection's snapshot directory.
+    state.mkdir()
+    (state / 'pid').write_text('54321\n')
+    (state / 'pid-start').write_text('42\n')
+    (state / 'boot').write_text(boot_id + '\n')
+    watchdog = subprocess.run(['/bin/sh', str(script), '--watchdog', '0', '', '', '', '',
+                               '54320', '41'], env=env, capture_output=True, text=True, timeout=5)
+    assert watchdog.returncode == 0 and not (state / 'stop').exists()
+    assert (state / 'pid').read_text().strip() == '54321'
+    # Equal PID with a different start time is a replacement lease too.
+    watchdog = subprocess.run(['/bin/sh', str(script), '--watchdog', '0', '', '', '', '',
+                               '54321', '41'], env=env, capture_output=True, text=True, timeout=5)
+    assert watchdog.returncode == 0 and not (state / 'stop').exists()
+    shutil.rmtree(state)
     # A successful shell exit alone must never acknowledge outstanding restoration snapshots.
     state.mkdir()
     (state / 'saved-0').write_text('pending restoration\n')
@@ -202,4 +278,4 @@ with tempfile.TemporaryDirectory(prefix='odinduo-guard-') as directory:
     invalid = subprocess.run(['/bin/sh', str(stop_script), 'invalid;token'], env=env,
                              capture_output=True, text=True, timeout=5)
     assert invalid.returncode == 2 and log.read_text() == previous_log, 'Invalid token was accepted'
-    print('Shell lifecycle checks passed: process loss, PID reuse, adoption, Stop, grace expiry, 3 reconnects, restore readback failure/retry and acknowledgements')
+    print('Shell lifecycle checks passed: process loss, adoption, reconnects, restoration retry, old/invalid boots, worker PID reuse and delayed watchdog isolation')

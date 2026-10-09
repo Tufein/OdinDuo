@@ -2,6 +2,7 @@ package nl.retroid.touchguard;
 
 import android.content.Context;
 import android.os.Process;
+import android.os.SystemClock;
 import android.util.AtomicFile;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -17,12 +18,14 @@ final class GuardStatusStore {
         final String text;
         final long changedAt;
         final long sessionStartedAt;
-        Status(boolean running, String state, String text, long changedAt, long sessionStartedAt) {
+        final long sessionElapsed;
+        Status(boolean running, String state, String text, long changedAt, long sessionStartedAt, long sessionElapsed) {
             this.running = running;
             this.state = state;
             this.text = text;
             this.changedAt = changedAt;
             this.sessionStartedAt = sessionStartedAt;
+            this.sessionElapsed = sessionElapsed;
         }
     }
 
@@ -31,20 +34,37 @@ final class GuardStatusStore {
     }
 
     static void write(Context context, boolean running, String state, String text) {
+        write(context, running, state, text, 0, new Object[0]);
+    }
+
+    static void write(Context context, boolean running, String state, int resource, Object... args) {
+        write(context, running, state, AppLanguage.current(context).getString(resource, args), resource, args);
+    }
+
+    private static void write(Context context, boolean running, String state, String text, int resource, Object[] args) {
         AtomicFile file = file(context);
         FileOutputStream output = null;
         try {
             String stat = new String(Files.readAllBytes(new File("/proc/self/stat").toPath()), StandardCharsets.UTF_8);
             long now = System.currentTimeMillis();
             long sessionStartedAt = now;
+            long elapsed = SystemClock.elapsedRealtime();
+            long sessionStartedElapsed = elapsed;
+            String boot = BootIdentity.current(context);
             try {
                 JSONObject previous = new JSONObject(new String(file(context).readFully(), StandardCharsets.UTF_8));
                 long previousStart = previous.optLong("sessionStartedAt", 0L);
-                if (previousStart > 0L && previous.optBoolean("running")) sessionStartedAt = previousStart;
+                sessionStartedElapsed = SessionClock.start(previous.optBoolean("running"),
+                        previous.optString("boot"), boot, previous.optLong("sessionStartedElapsed", -1), elapsed);
+                if (previousStart > 0L && previous.optBoolean("running")
+                        && SessionClock.sameBoot(previous.optString("boot"), boot)) sessionStartedAt = previousStart;
             } catch (Exception ignored) { }
             JSONObject value = new JSONObject().put("running", running).put("state", state).put("status", text)
                     .put("changedAt", now).put("sessionStartedAt", sessionStartedAt)
+                    .put("boot", boot).put("sessionStartedElapsed", sessionStartedElapsed)
                     .put("pid", Process.myPid()).put("start", ProcessIdentity.startTicks(stat));
+            if (resource != 0) value.put("statusResource", context.getResources().getResourceEntryName(resource))
+                    .put("statusArguments", new org.json.JSONArray(java.util.Arrays.asList(args)));
             output = file.startWrite();
             output.write(value.toString().getBytes(StandardCharsets.UTF_8));
             file.finishWrite(output);
@@ -58,17 +78,21 @@ final class GuardStatusStore {
     static Status read(Context context) {
         try {
             JSONObject value = new JSONObject(new String(file(context).readFully(), StandardCharsets.UTF_8));
-            boolean running = value.optBoolean("running") && (liveProcess(value) || VendorBridge.guardAlive(context));
+            boolean sameBoot = SessionClock.sameBoot(value.optString("boot"), BootIdentity.current(context));
+            boolean running = value.optBoolean("running") && sameBoot && (liveProcess(value) || VendorBridge.guardAlive(context));
             String state = value.optString("state", "idle");
-            String text = value.optString("status", context.getString(R.string.status_idle));
+            String text = StatusText.read(context, value);
             long changedAt = value.optLong("changedAt", 0L);
             long sessionStartedAt = value.optLong("sessionStartedAt", changedAt);
+            long sessionElapsed = SessionClock.duration(value.optString("boot"), BootIdentity.current(context),
+                    value.optLong("sessionStartedElapsed", -1), SystemClock.elapsedRealtime());
+            if (!sameBoot) return new Status(false, "idle", context.getString(R.string.status_restarted), changedAt, 0, -1);
             if (!running && value.optBoolean("running")) {
-                return new Status(false, "idle", context.getString(R.string.status_restarted), changedAt, sessionStartedAt);
+                return new Status(false, "idle", context.getString(R.string.status_restarted), changedAt, sessionStartedAt, -1);
             }
-            return new Status(running, state, text, changedAt, sessionStartedAt);
+            return new Status(running, state, text, changedAt, sessionStartedAt, sessionElapsed);
         } catch (Exception exception) {
-            return new Status(false, "idle", context.getString(R.string.status_idle), 0L, 0L);
+            return new Status(false, "idle", context.getString(R.string.status_idle), 0L, 0L, -1);
         }
     }
 

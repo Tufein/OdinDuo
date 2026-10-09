@@ -58,6 +58,8 @@ final class VendorBridge {
 
     static GuardHeartbeat heartbeat(Context context) {
         try {
+            String savedBoot = new String(new AtomicFile(new File(context.getFilesDir(), "guard-boot")).readFully(), StandardCharsets.UTF_8);
+            if (!SessionClock.sameBoot(savedBoot, BootIdentity.current(context))) return GuardHeartbeat.missing();
             String token = new String(Files.readAllBytes(new File(context.getFilesDir(), "guard-enabled").toPath()), StandardCharsets.UTF_8).trim();
             String record = new String(Files.readAllBytes(new File(context.getFilesDir(), "guard-heartbeat").toPath()), StandardCharsets.UTF_8);
             return GuardHeartbeat.read(token, record, SystemClock.elapsedRealtime() / 1000);
@@ -105,6 +107,18 @@ final class VendorBridge {
             marker.write(token.getBytes(StandardCharsets.UTF_8));
         }
         writeOwner(context, token);
+        AtomicFile bootFile = new AtomicFile(new File(context.getFilesDir(), "guard-boot"));
+        FileOutputStream bootOutput = null;
+        try {
+            String boot = BootIdentity.current(context);
+            if (boot.isEmpty()) throw new IllegalStateException("Android boot identity is unavailable.");
+            bootOutput = bootFile.startWrite();
+            bootOutput.write(boot.getBytes(StandardCharsets.UTF_8));
+            bootFile.finishWrite(bootOutput);
+        } catch (Exception exception) {
+            if (bootOutput != null) bootFile.failWrite(bootOutput);
+            throw exception;
+        }
         String command = "/system/bin/sh " + ProcessIdentity.quote(script.getAbsolutePath())
                 + " --watch-app " + Process.myPid() + " " + ProcessIdentity.startTicks(stat)
                 + " " + Process.myUid() + " " + token + " >> " + ProcessIdentity.quote(logFile(context).getAbsolutePath())
@@ -121,6 +135,7 @@ final class VendorBridge {
         context.deleteFile("guard-enabled");
         new AtomicFile(new File(context.getFilesDir(), "guard-owner")).delete();
         context.deleteFile("guard-heartbeat");
+        new AtomicFile(new File(context.getFilesDir(), "guard-boot")).delete();
         File script = new File(context.getFilesDir(), "power-guard.sh");
         if (!script.isFile()) return;
         // The tested stock PServer accepts the long compound command but does not execute it.
