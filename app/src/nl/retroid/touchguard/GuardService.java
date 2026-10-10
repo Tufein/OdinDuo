@@ -69,21 +69,25 @@ public final class GuardService extends Service {
                         finish(R.string.status_guard_error, "error");
                         return;
                     case STOPPED:
+                        boolean detached = GuardLogState.stoppedAfterDetach(log);
                         if (!automatic) {
-                            finish(R.string.status_detached, "idle");
+                            finish(detached ? R.string.status_detached : R.string.status_helper_lost,
+                                    detached ? "idle" : "error");
                             return;
                         }
-                        if (!log.contains("RDS detached/replaced; restoring")
-                                && !health.allowRecovery(SystemClock.uptimeMillis())) {
+                        if (!detached && !health.allowRecovery(SystemClock.uptimeMillis())) {
                             finish(R.string.status_helper_lost, "error");
                             return;
                         }
                         // Wait for complete restoration before starting the next connection lease.
                         // The existing root guard scans for RDS without changing power while waiting.
-                        status("waiting", R.string.status_auto_waiting);
+                        status(detached ? "waiting" : "recovering",
+                                detached ? R.string.status_auto_waiting : R.string.status_recovering);
                         VendorBridge.stop(GuardService.this);
                         if (stopped || ending) return;
-                        EventLog.write(GuardService.this, "automatic mode rearmed after display detach");
+                        EventLog.write(GuardService.this, detached
+                                ? "automatic mode rearmed after display detach"
+                                : "automatic protection recovering after unexpected helper stop");
                         launchGuard();
                         return;
                     case ACTIVE: status("active", R.string.status_active); break;

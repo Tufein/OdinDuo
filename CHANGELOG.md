@@ -8,8 +8,9 @@
 - Resolve persisted status and notification actions in the current app language without restarting healthy protection.
 - Bound history storage by entries, event length and encoded bytes, redact session tokens, and limit lock waiting. Report failed clearing instead of showing a false success.
 - Show first-run setup only while its activity is resumed and the notification permission request has finished.
+- Offer Retry after an unexpected helper/watchdog stop instead of misreporting a disconnected display. Only a detach from the current session counts as a normal end.
 - Add emulator instrumentation for cross-process history, storage failures and language changes; compile its APK in CI.
-- Build version code 21 with the existing update-compatible certificate. Physical Odin 3 validation is pending.
+- Build version code 21 with the existing update-compatible certificate. Stock Odin 3 update, service restart, recents dismissal and notification Retry checks pass; physical touch and reboot checks remain pending.
 
 ## 2.0.0 — 2026-10-08
 
