@@ -14,7 +14,7 @@ The 2.0.0 debug/release builds, Android lint and GitHub CI pass. The new version
 
 **After updating, Stop protection once and enable Auto protect again** to start the updated helper. Version 2.0 adds session duration, bounded local history, guided setup, a manual connection and wake checklist, clearer recovery notifications and optional Dutch per-app language support. See [the 2.0.0 release notes](docs/releases/2.0.0.md).
 
-Development is now on **2.0.1**: boot/session recovery, accurate elapsed timing, safer history and live English/Dutch status. This is a candidate, pending physical Odin validation. See [candidate notes](docs/releases/2.0.1.md) and the [roadmap](docs/roadmap.md).
+Development is now on **2.0.1**: boot/session recovery, accurate elapsed timing, safer history, live English/Dutch status and Retry after an unexpected helper stop. Stock Odin update, service restart, recents dismissal, notification Retry and automatic startup after reboot/unlock pass. The candidate still awaits repeated physical Retroid touch checks. See [candidate notes](docs/releases/2.0.1.md) and the [roadmap](docs/roadmap.md).
 
 ## Use
 

@@ -10,7 +10,7 @@
 - Show first-run setup only while its activity is resumed and the notification permission request has finished.
 - Offer Retry after an unexpected helper/watchdog stop instead of misreporting a disconnected display. Only a detach from the current session counts as a normal end.
 - Add emulator instrumentation for cross-process history, storage failures and language changes; compile its APK in CI.
-- Build version code 21 with the existing update-compatible certificate. Stock Odin 3 update, service restart, recents dismissal and notification Retry checks pass; physical touch and reboot checks remain pending.
+- Build version code 21 with the existing update-compatible certificate. Stock Odin 3 update, service restart, recents dismissal, notification Retry and automatic startup after reboot/unlock checks pass; repeated physical touch checks remain pending.
 
 ## 2.0.0 — 2026-10-08
 
