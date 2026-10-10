@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.0.1 — in development
+## 2.0.1 — 2026-10-10
 
 - Bind status and helper health to the current Android boot, and record the root worker's boot and process start time.
 - Reject restoration records from a previous boot before signalling a process or writing USB settings. Keep malformed boot records pending and isolate delayed watchdogs from replacement sessions.
@@ -10,7 +10,7 @@
 - Show first-run setup only while its activity is resumed and the notification permission request has finished.
 - Offer Retry after an unexpected helper/watchdog stop instead of misreporting a disconnected display. Only a detach from the current session counts as a normal end.
 - Add emulator instrumentation for cross-process history, storage failures and language changes; compile its APK in CI.
-- Build version code 21 with the existing update-compatible certificate. Stock Odin 3 update, service restart, recents dismissal, notification Retry and automatic startup after reboot/unlock checks pass; repeated physical touch checks remain pending.
+- Release version code 21 with the existing update-compatible certificate. Stock Odin 3 update, service restart, recents dismissal, notification Retry and automatic startup after reboot/unlock checks pass. The tester confirms touch through three sleep/wake cycles and two reconnects; the bounded recording contains 51 touch-down events and no sampled error state, but does not independently verify touch after every wake.
 
 ## 2.0.0 — 2026-10-08
 
