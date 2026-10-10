@@ -8,11 +8,13 @@ OdinDuo applies a temporary USB power-management workaround through the stock AY
 
 ## Download
 
-Download [OdinDuo 2.0.0](https://github.com/Tufein/OdinDuo/releases/tag/v2.0.0), the latest full release. The signed, non-debuggable APK keeps the same package and signing certificate for an in-place update from 1.1.0. An APK checksum accompanies the download; private signing keys are never published.
+Download [OdinDuo 2.0.1](https://github.com/Tufein/OdinDuo/releases/tag/v2.0.1), the latest full release. The signed, non-debuggable APK keeps the same package and signing certificate for an in-place update from 2.0.0 or 1.1.0. An APK checksum accompanies the download; private signing keys are never published.
 
-The 2.0.0 debug/release builds, Android lint and GitHub CI pass. The new version has not yet been tested on stock Odin 3 hardware; earlier physical touch validation applies to 1.1.0. See the [release validation](docs/releases/2.0.0.md).
+Debug/release builds, Android lint and GitHub CI pass. Stock Odin 3 tests cover update, service restart, recents dismissal, notification Retry and automatic startup after reboot/unlock. The tester confirms working touch through three sleep/wake cycles and two reconnects. See the [release validation and recording limits](docs/releases/2.0.1.md).
 
 **After updating, Stop protection once and enable Auto protect again** to start the updated helper. Version 2.0 adds session duration, bounded local history, guided setup, a manual connection and wake checklist, clearer recovery notifications and optional Dutch per-app language support. See [the 2.0.0 release notes](docs/releases/2.0.0.md).
+
+**2.0.1** strengthens boot/session recovery, elapsed timing, local history, live English/Dutch status and Retry after an unexpected helper stop. See the [release notes](docs/releases/2.0.1.md) and the [roadmap](docs/roadmap.md) for planned improvements.
 
 ## Use
 
@@ -85,7 +87,7 @@ adb -s YOUR_ODIN_SERIAL install -r app/build/OdinDuo.apk
 adb -s YOUR_ODIN_SERIAL shell am start -n nl.retroid.touchguard/.MainActivity
 ```
 
-The app remains `nl.retroid.touchguard` so OdinDuo can update the original installation. The current version is **2.0.0**, with version code **20** and target SDK **36**.
+The app remains `nl.retroid.touchguard` so OdinDuo can update the original installation. The full release is **2.0.1**, with version code **21** and target SDK **36**.
 
 The canonical guard in `tools/pserver-power-guard.sh` and its stop helper in `tools/pserver-power-stop.sh` are bundled as generated resources during the build. Generated resources, APKs, device captures and signing keys are excluded from Git. `./app/build.sh` produces a debug APK for development. To build the non-debuggable release:
 
@@ -104,7 +106,7 @@ For an existing installation, preserve its signing key when building updates. Th
 ./gradlew :app:lintRelease
 ```
 
-GitHub Actions runs `assembleDebug`, `lintDebug` and `tools/check.sh` for every pull request and pushes to main or Codex branches. The workflow pins actions to commit hashes, installs SDK 36 and build-tools 36.0.0, and requires no release signing key. Its debug artifacts are retained for seven days and use a development certificate; use the release assets for updates to an installed public version. The protected main branch requires an up-to-date PR with the Android build and checks result from GitHub Actions, including for administrators.
+GitHub Actions builds both the debug and instrumentation APKs, runs `lintDebug` and `tools/check.sh` for every pull request and pushes to main or Codex branches. The workflow pins actions to commit hashes, installs SDK 36 and build-tools 36.0.0, and requires no release signing key. Its debug artifacts are retained for seven days and use a development certificate; use the release assets for updates to an installed public version. Instrumentation is compiled in CI; run its storage/language suite only on a disposable emulator as described in the [2.0.1 notes](docs/releases/2.0.1.md). The protected main branch requires an up-to-date PR with the Android build and checks result from GitHub Actions, including for administrators.
 
 The checks verify process identity parsing, rejection of truncated records, shell argument quoting without command substitution, USB descriptor/target validation, and log parsing that honours the latest power state and gives restoration failures precedence. The shell integration test runs the real guard against temporary fake proc/USB files: process loss preserves power settings, a reused PID is rejected, a new service adopts the session without resetting USB, explicit Stop restores promptly, and an expired restart grace restores the original settings. It also checks detach acknowledgements across three connection leases, rejects invalid acknowledgement tokens and ensures pending snapshots cannot be acknowledged as successful. It never writes host or connected-device power settings. Emulator checks cannot establish that physical Retroid touch survives sleep.
 
@@ -119,6 +121,8 @@ The initial 1.0 build was checked in an isolated Android 15 emulator with a test
 The updated build (version code 7) passed the build, release lint (zero errors) and regression checks, including the stop helper’s success, invalid-token and pending-restoration cases. It installed over 1.0.0 on the physical Odin with the same certificate, resumed the enabled automatic mode after app replacement, confirmed Stop through the stock service and returned to a clean waiting session. The brightness investigation used the connected physical Retroid display; the matching guide and its layout were inspected in an Android 15 emulator. A new physical three-connection touch test was requested separately; its result is not included in these measurements.
 
 Version 1.1.0 passed local debug/release builds, Android lint (zero issues with the documented vendor lookup exception), policy/shell regressions and Android 15 emulator checks. On the stock Odin 3, its actual Quick Settings switch started and stopped protection, and the real notification Retry recovered a deliberately interrupted manual helper session while no Retroid was connected. The final-candidate recording contains 269 raw touch frames after two observed doze/wake cycles and one display reconnect, without touch-reader or sampled protection errors. The tester also completed the beta's five sleep/wake cycles and two reconnect checks; its bounded recording does not independently cover that entire sleep test. See [the release validation](docs/releases/1.1.0.md).
+
+Version 2.0.1 adds current-boot identity, process-start checks and bounded storage/language instrumentation. Stock Odin checks confirm update, sticky adoption, recents persistence, actual notification Retry and unattended Auto protect startup after reboot/unlock. The tester confirms three sleep/wake cycles and two reconnects. A 274-sample recording contains 51 touch-down events and no sampled error state; its gap during intermediate wake steps means it does not independently verify touch after each wake. See [the 2.0.1 validation](docs/releases/2.0.1.md).
 
 ## Diagnostics and removal
 

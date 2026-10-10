@@ -11,8 +11,31 @@ owner_token=
 owner_missing_until=0
 restart_grace=60
 observation=WAITING
+boot=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)
 log() { echo "$(date +%s) $*"; }
 clock_seconds() { read seconds unused < /proc/uptime; echo "${seconds%%.*}"; }
+valid_boot() {
+  case "$1" in *[!a-f0-9-]*) return 1 ;; esac
+  case "$1" in ????????-????-????-????-????????????) ;; *) return 1 ;; esac
+  compact_boot=$(printf '%s' "$1" | tr -d '-')
+  [ "${#compact_boot}" = 32 ]
+}
+process_start() {
+  process_stat=$(cat "/proc/$1/stat" 2>/dev/null) || return 1
+  process_stat=${process_stat##*) }
+  process_ticks=$(printf '%s\n' "$process_stat" | awk '{print $20}')
+  case "$process_ticks" in ''|*[!0-9]*) return 1 ;; esac
+  printf '%s\n' "$process_ticks"
+}
+worker_alive() {
+  case "$1" in ''|*[!0-9]*) return 1 ;; esac
+  [ "$1" -gt 0 ] || return 1
+  if [ -n "$2" ]; then
+    [ "$(process_start "$1")" = "$2" ] || return 1
+  fi
+  worker_command=$(tr '\000' ' ' < "/proc/$1/cmdline" 2>/dev/null)
+  case "$worker_command" in *"$script --watch"*) return 0 ;; *) return 1 ;; esac
+}
 owner_alive() {
   [ -z "$owner_pid" ] && return 0
   [ -r "/proc/$owner_pid/stat" ] || return 1
@@ -78,6 +101,14 @@ valid_control() {
   esac
 }
 restore() {
+  # sysfs and PIDs are new objects after reboot. Old snapshots cannot describe this boot.
+  if [ -f "$state/boot" ]; then
+    saved_boot=$(cat "$state/boot" 2>/dev/null)
+    if ! valid_boot "$boot" || ! valid_boot "$saved_boot"; then
+      log 'RESTORE FAILED invalid boot identity'; restore_failed=1; return
+    fi
+    [ "$saved_boot" = "$boot" ] || { log 'RESTORE previous boot; no USB writes'; return; }
+  fi
   # Walk snapshots in reverse order; do not restore an unrelated replacement USB device.
   remaining=$(cat "$state/count" 2>/dev/null)
   case "$remaining" in ''|*[!0-9]*) remaining=0 ;; esac
@@ -112,16 +143,26 @@ restore() {
 }
 stop_worker() {
   [ -d "$state" ] || return 0
+  if [ -f "$state/boot" ]; then
+    saved_boot=$(cat "$state/boot" 2>/dev/null)
+    if ! valid_boot "$boot" || ! valid_boot "$saved_boot"; then
+      log 'RESTORE FAILED invalid boot identity'; return 1
+    fi
+    if [ "$saved_boot" != "$boot" ]; then
+      log 'RESTORE previous boot; no process signals or USB writes'
+      rm -rf "$state"
+      return
+    fi
+  fi
   touch "$state/stop"
   worker=$(cat "$state/pid" 2>/dev/null)
   case "$worker" in ''|*[!0-9]*) worker= ;; esac
-  if [ -n "$worker" ] && [ -r "/proc/$worker/cmdline" ]; then
-    command=$(tr '\000' ' ' < "/proc/$worker/cmdline")
-    case "$command" in *"$script --watch"*) kill -TERM "$worker" 2>/dev/null ;; esac
-  fi
+  worker_start=$(cat "$state/pid-start" 2>/dev/null)
+  # Older helpers have no start record: request Stop through the flag, without signalling.
+  [ -z "$worker_start" ] || ! worker_alive "$worker" "$worker_start" || kill -TERM "$worker" 2>/dev/null
   # Normal signal handling restores from the worker; recover snapshots after a hard kill.
   sleep 2
-  if [ -d "$state" ] && { [ -z "$worker" ] || ! kill -0 "$worker" 2>/dev/null; }; then
+  if [ -d "$state" ] && ! worker_alive "$worker" "$worker_start"; then
     restore_failed=0
     restore
     [ "$restore_failed" = 0 ] && rm -rf "$state"
@@ -142,7 +183,11 @@ case "$1" in
     owner_uid=$5
     owner_token=$6
     worker=$7
-    while session_valid && kill -0 "$worker" 2>/dev/null; do sleep 1; done
+    worker_start=$8
+    while session_valid && worker_alive "$worker" "$worker_start"; do sleep 1; done
+    # A delayed old watchdog must never stop a replacement connection lease.
+    [ "$(cat "$state/pid" 2>/dev/null)" = "$worker" ] &&
+      [ "$(cat "$state/pid-start" 2>/dev/null)" = "$worker_start" ] || exit 0
     stop_worker
     log 'GUARD stopped (watchdog)'
     exit 0
@@ -164,10 +209,14 @@ case "$1" in
   *) echo 'Use --watch, --watch-app or --stop'; exit 2 ;;
 esac
 [ "$(id -u)" = 0 ] || { echo 'Requires the stock privileged AYN service'; exit 1; }
+valid_boot "$boot" || { echo 'Boot identity unavailable; no power changes'; exit 1; }
+worker_start=$(process_start "$$") || { echo 'Worker identity unavailable; no power changes'; exit 1; }
 mkdir "$state" 2>/dev/null || { echo 'An experiment or pending restoration already exists'; exit 1; }
 chmod 0700 "$state"
 chmod 0644 "$base/power-guard.txt"
 echo $$ > "$state/pid"
+printf '%s\n' "$worker_start" > "$state/pid-start"
+printf '%s\n' "$boot" > "$state/boot"
 watchdog=
 cleanup() {
   trap - EXIT HUP INT TERM
@@ -185,7 +234,7 @@ trap 'exit 0' HUP INT TERM
 end=0
 [ "$duration" = 0 ] || end=$(( $(clock_seconds) + duration ))
 # Independent root child can restore snapshots even if the worker is killed outright.
-/system/bin/sh "$script" --watchdog "$end" "$owner_pid" "$owner_start" "$owner_uid" "$owner_token" "$$" </dev/null >> "$base/power-guard.txt" 2>&1 &
+/system/bin/sh "$script" --watchdog "$end" "$owner_pid" "$owner_start" "$owner_uid" "$owner_token" "$$" "$worker_start" </dev/null >> "$base/power-guard.txt" 2>&1 &
 watchdog=$!
 log "READY waiting for RDS; duration=${duration}s owner=$owner_pid worker=$$ watchdog=$watchdog"
 rds=

@@ -17,4 +17,14 @@ final class GuardLogState {
         }
         return state;
     }
+
+    /** Only a detach from the latest helper session is a normal manual-session end. */
+    static boolean stoppedAfterDetach(String log) {
+        boolean detached = false;
+        for (String line : log.split("\n")) {
+            if (line.contains("READY waiting for RDS")) detached = false;
+            else if (line.contains("RDS detached/replaced; restoring")) detached = true;
+        }
+        return detached && read(log) == State.STOPPED;
+    }
 }

@@ -110,6 +110,7 @@
     <string name="history_clear_title">Clear local history?</string>
     <string name="history_clear_body">This removes the local timeline from OdinDuo. It does not affect protection or Android settings.</string>
     <string name="history_cleared">Session history cleared.</string>
+    <string name="history_clear_error">History could not be cleared. Please try again.</string>
     <string name="connection_test">Connection &amp; wake test</string>
     <string name="connection_test_title">Connection &amp; wake test</string>
     <string name="connection_test_body">Run this short manual check while protection is active. Tick only the steps that worked. OdinDuo records the result without saving touch coordinates.</string>
