@@ -8,8 +8,8 @@ android {
         applicationId 'nl.retroid.touchguard'
         minSdk 33
         targetSdk 36
-        versionCode 21
-        versionName '2.0.1'
+        versionCode 22
+        versionName '2.0.2-beta.1'
         testInstrumentationRunner 'nl.retroid.touchguard.ReliabilityInstrumentation'
     }
     sourceSets {
@@ -20,6 +20,8 @@ android {
         }
         androidTest { java.srcDirs = ['androidTest'] }
     }
+    sourceSets.test.java.srcDirs = ['ui-tests']
+    testOptions.unitTests.includeAndroidResources = true
     buildFeatures { buildConfig true }
     // Always include both languages, including in any future App Bundle distribution.
     bundle { language { enableSplit = false } }
@@ -66,6 +68,12 @@ def guardResources = tasks.register('generateGuardResources', Copy) {
 tasks.named('preBuild').configure { dependsOn guardResources }
 
 dependencies {
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.16.1'
     implementation 'com.google.android.material:material:1.14.0'
     implementation 'androidx.appcompat:appcompat:1.8.0'
+}
+
+tasks.withType(Test).configureEach {
+    systemProperty 'robolectric.dependency.repo.url', 'https://repo.maven.apache.org/maven2'
 }

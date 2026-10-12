@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.2-beta.1 — Unreleased
+
+- Show progress and explicit Starting/Stopping labels while the dashboard waits for protection changes.
+- Preserve pending Start, Stop and Auto protect requests during same-boot activity recreation; reject saved requests from another boot and bound the wait for an acknowledgement.
+- Keep first-run setup waiting for an outstanding notification permission answer after activity recreation.
+- Expose setup and diagnostics next to Retry, add a focusable notification-settings shortcut and handle rejected Stop requests without crashing.
+- Translate the new feedback into Dutch and add nine host Android UI regressions to CI.
+- Prepare version code 22 with a new release signing certificate. Existing public installations require confirmed Stop/restoration before a clean reinstall. VirusTotal scanning is pending the secure API binding.
+
 ## 2.0.1 — 2026-10-10
 
 - Bind status and helper health to the current Android boot, and record the root worker's boot and process start time.

@@ -16,6 +16,8 @@ Debug/release builds, Android lint and GitHub CI pass. Stock Odin 3 tests cover 
 
 **2.0.1** strengthens boot/session recovery, elapsed timing, local history, live English/Dutch status and Retry after an unexpected helper stop. See the [release notes](docs/releases/2.0.1.md) and the [roadmap](docs/roadmap.md) for planned improvements.
 
+A **2.0.2-beta.1** prerelease is being prepared with clearer action feedback and regression-tested dashboard controls. See [its release notes](docs/releases/2.0.2-beta.1.md). It uses a new signing certificate and requires a clean reinstall after successful Stop/restoration; the published stable 2.0.1 remains available with its existing certificate. VirusTotal scanning is pending.
+
 ## Use
 
 1. Open **OdinDuo** and turn on **Auto protect**, or tap **Start protection** for a single session.
@@ -103,10 +105,13 @@ For an existing installation, preserve its signing key when building updates. Th
 
 ```sh
 ./tools/check.sh
+./gradlew :app:testDebugUnitTest
 ./gradlew :app:lintRelease
 ```
 
-GitHub Actions builds both the debug and instrumentation APKs, runs `lintDebug` and `tools/check.sh` for every pull request and pushes to main or Codex branches. The workflow pins actions to commit hashes, installs SDK 36 and build-tools 36.0.0, and requires no release signing key. Its debug artifacts are retained for seven days and use a development certificate; use the release assets for updates to an installed public version. Instrumentation is compiled in CI; run its storage/language suite only on a disposable emulator as described in the [2.0.1 notes](docs/releases/2.0.1.md). The protected main branch requires an up-to-date PR with the Android build and checks result from GitHub Actions, including for administrators.
+GitHub Actions builds both the debug and instrumentation APKs, runs `testDebugUnitTest`, `lintDebug` and `tools/check.sh` for every pull request and pushes to main or Codex branches. The workflow pins actions to commit hashes, installs SDK 36 and build-tools 36.0.0, and requires no release signing key. Its debug artifacts are retained for seven days and use a development certificate; use the release assets for updates to an installed public version. Instrumentation is compiled in CI; run its storage/language suite only on a disposable emulator as described in the [2.0.1 notes](docs/releases/2.0.1.md). The protected main branch requires an up-to-date PR with the Android build and checks result from GitHub Actions, including for administrators.
+
+The nine host UI tests use Robolectric on API 35 and check setup/error navigation, request feedback, same-boot recreation and timeouts, previous-boot rejection, Dutch labels, notification-permission ordering and landscape resources. These tests exercise Android views without an emulator.
 
 The checks verify process identity parsing, rejection of truncated records, shell argument quoting without command substitution, USB descriptor/target validation, and log parsing that honours the latest power state and gives restoration failures precedence. The shell integration test runs the real guard against temporary fake proc/USB files: process loss preserves power settings, a reused PID is rejected, a new service adopts the session without resetting USB, explicit Stop restores promptly, and an expired restart grace restores the original settings. It also checks detach acknowledgements across three connection leases, rejects invalid acknowledgement tokens and ensures pending snapshots cannot be acknowledged as successful. It never writes host or connected-device power settings. Emulator checks cannot establish that physical Retroid touch survives sleep.
 
