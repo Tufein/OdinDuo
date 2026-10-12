@@ -49,6 +49,10 @@ public final class MainActivity extends AppCompatActivity {
     private boolean updatingSwitch;
     private Boolean pendingAutomatic;
     private long modeRequestedAt;
+    private boolean pendingStart;
+    private boolean pendingStop;
+    private long actionRequestedAt;
+    private static final long REQUEST_TIMEOUT_MS = 10000;
     private boolean notificationRequestPending;
     private final Runnable firstSetup = () -> {
         if (!isFinishing() && !isDestroyed() && !notificationRequestPending
@@ -67,6 +71,18 @@ public final class MainActivity extends AppCompatActivity {
 
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
+        if (saved != null) {
+            localError = saved.getString("local_error");
+            if (SessionClock.sameBoot(saved.getString("request_boot"), BootIdentity.current(this))) {
+                pendingStart = saved.getBoolean("pending_start");
+                pendingStop = saved.getBoolean("pending_stop");
+                actionRequestedAt = saved.getLong("action_requested_at");
+                if (saved.containsKey("pending_automatic")) pendingAutomatic = saved.getBoolean("pending_automatic");
+                modeRequestedAt = saved.getLong("mode_requested_at");
+                notificationRequestPending = saved.getBoolean("notification_request_pending")
+                        && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED;
+            }
+        }
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         setContentView(R.layout.activity_main);
         View root = findViewById(R.id.root);
@@ -90,8 +106,16 @@ public final class MainActivity extends AppCompatActivity {
                 BuildConfig.VERSION_NAME, getString(R.string.compatibility)));
         start.setOnClickListener(view -> startGuard());
         stop.setOnClickListener(view -> {
-            startService(new Intent(this, GuardService.class).setAction(GuardService.STOP));
-            stop.setEnabled(false);
+            if (pendingStop) return;
+            try {
+                startService(new Intent(this, GuardService.class).setAction(GuardService.STOP));
+                pendingStop = true;
+                actionRequestedAt = android.os.SystemClock.elapsedRealtime();
+                refreshStatus();
+            } catch (RuntimeException exception) {
+                EventLog.write(this, "service stop request failed " + exception);
+                Toast.makeText(this, R.string.stop_request_error, Toast.LENGTH_LONG).show();
+            }
         });
         automatic.setOnCheckedChangeListener((button, enabled) -> {
             if (!updatingSwitch) setAutomatic(enabled);
@@ -100,6 +124,8 @@ public final class MainActivity extends AppCompatActivity {
         findViewById(R.id.brightness).setOnClickListener(view -> showBrightnessHelp());
         findViewById(R.id.help).setOnClickListener(view -> showHelp());
         findViewById(R.id.setup).setOnClickListener(view -> showSetup());
+        findViewById(R.id.error_setup).setOnClickListener(view -> showSetup());
+        findViewById(R.id.error_diagnostics).setOnClickListener(view -> shareDiagnostics());
         findViewById(R.id.history).setOnClickListener(view -> showHistory());
         findViewById(R.id.connection_test).setOnClickListener(view -> showConnectionTest());
         findViewById(R.id.notification_hint).setOnClickListener(view -> openAppSettings());
@@ -116,23 +142,41 @@ public final class MainActivity extends AppCompatActivity {
 
     private void refreshStatus() {
         GuardStatusStore.Status snapshot = GuardStatusStore.read(this);
+        long now = android.os.SystemClock.elapsedRealtime();
+        boolean enabled = GuardPreferences.automatic(this);
+        if (pendingAutomatic != null && (enabled == pendingAutomatic
+                || now < modeRequestedAt || now - modeRequestedAt > REQUEST_TIMEOUT_MS)) pendingAutomatic = null;
+        if (pendingStart && snapshot.running) pendingStart = false;
+        if (pendingStop && (!snapshot.running || "stopping".equals(snapshot.state))) pendingStop = false;
+        if ((pendingStart || pendingStop) && (now < actionRequestedAt || now - actionRequestedAt > REQUEST_TIMEOUT_MS)) {
+            pendingStart = false;
+            pendingStop = false;
+            Toast.makeText(this, R.string.action_timeout, Toast.LENGTH_LONG).show();
+        }
         String message = localError != null && !snapshot.running ? localError : snapshot.text;
-        if (!android.text.TextUtils.equals(status.getText(), message)) status.setText(message);
         String state = localError != null && !snapshot.running ? "error" : snapshot.state;
-        boolean busy = snapshot.running;
-        start.setEnabled(!busy);
-        start.setText("error".equals(state) ? R.string.retry_protection : R.string.start_protection);
-        start.setVisibility(busy ? View.GONE : View.VISIBLE);
-        stop.setVisibility(busy ? View.VISIBLE : View.GONE);
-        stop.setEnabled(busy && !"stopping".equals(state));
+        if (pendingStart) { state = "starting"; message = getString(R.string.status_starting); }
+        if (pendingStop) { state = "stopping"; message = getString(R.string.status_stopping); }
+        if (!android.text.TextUtils.equals(status.getText(), message)) status.setText(message);
+        boolean busy = snapshot.running || pendingStart || pendingStop;
+        start.setEnabled(!busy && pendingAutomatic == null);
+        start.setText(pendingStart ? R.string.starting_protection
+                : "error".equals(state) ? R.string.retry_protection : R.string.start_protection);
+        start.setVisibility(snapshot.running || pendingStop ? View.GONE : View.VISIBLE);
+        stop.setVisibility(snapshot.running || pendingStop ? View.VISIBLE : View.GONE);
+        stop.setEnabled(snapshot.running && !pendingStart && !pendingStop && !"stopping".equals(state));
+        stop.setText("stopping".equals(state) ? R.string.stopping_protection : R.string.stop_protection);
+        boolean working = "starting".equals(state) || "recovering".equals(state) || "stopping".equals(state);
+        findViewById(R.id.progress).setVisibility(working ? View.VISIBLE : View.GONE);
+        findViewById(R.id.error_actions).setVisibility("error".equals(state) ? View.VISIBLE : View.GONE);
         int titleResource = R.string.title_idle;
         int chipResource = R.string.chip_idle;
         switch (state) {
             case "waiting": titleResource = R.string.title_waiting; chipResource = R.string.chip_waiting; break;
-            case "starting": titleResource = R.string.title_starting; chipResource = R.string.chip_waiting; break;
+            case "starting": titleResource = R.string.title_starting; chipResource = R.string.chip_starting; break;
             case "recovering": titleResource = R.string.title_recovering; chipResource = R.string.chip_recovering; break;
             case "active": titleResource = R.string.title_active; chipResource = R.string.chip_active; break;
-            case "stopping": titleResource = R.string.title_stopping; chipResource = R.string.chip_waiting; break;
+            case "stopping": titleResource = R.string.title_stopping; chipResource = R.string.chip_stopping; break;
             case "error": titleResource = R.string.title_error; chipResource = R.string.chip_error; break;
             default: break;
         }
@@ -148,14 +192,12 @@ public final class MainActivity extends AppCompatActivity {
         }
         device.setText(present ? R.string.device_connected : R.string.device_disconnected);
         sessionInfo.setText(sessionSummary(snapshot));
-        boolean enabled = GuardPreferences.automatic(this);
-        if (pendingAutomatic != null && (enabled == pendingAutomatic
-                || android.os.SystemClock.elapsedRealtime() - modeRequestedAt > 5000)) pendingAutomatic = null;
         updatingSwitch = true;
         automatic.setChecked(pendingAutomatic != null ? pendingAutomatic : enabled);
-        automatic.setEnabled(pendingAutomatic == null && !"stopping".equals(state));
+        automatic.setEnabled(pendingAutomatic == null && !pendingStart && !"stopping".equals(state));
         updatingSwitch = false;
-        automaticSummary.setText(enabled ? (busy ? R.string.automatic_on : R.string.automatic_paused) : R.string.automatic_off);
+        automaticSummary.setText(pendingAutomatic != null ? R.string.automatic_updating
+                : enabled ? (busy ? R.string.automatic_on : R.string.automatic_paused) : R.string.automatic_off);
         findViewById(R.id.notification_hint).setVisibility(
                 checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
                         ? View.GONE : View.VISIBLE);
@@ -169,11 +211,13 @@ public final class MainActivity extends AppCompatActivity {
         start.setEnabled(true);
         stop.setEnabled(false);
         pendingAutomatic = null;
+        pendingStart = false;
+        pendingStop = false;
         refreshStatus();
     }
 
     private void startGuard() {
-        if (GuardStatusStore.read(this).running) return;
+        if (pendingStart || pendingStop || pendingAutomatic != null || GuardStatusStore.read(this).running) return;
         localError = null;
         EventLog.write(this, "power protection requested");
         if (!VendorBridge.available()) {
@@ -182,7 +226,9 @@ public final class MainActivity extends AppCompatActivity {
         }
         try {
             startForegroundService(new Intent(this, GuardService.class));
-            start.setEnabled(false);
+            pendingStart = true;
+            actionRequestedAt = android.os.SystemClock.elapsedRealtime();
+            refreshStatus();
         } catch (RuntimeException exception) {
             setStatus("error", getString(R.string.status_start_error, exception.getMessage()));
             EventLog.write(this, "service start failed " + exception);
@@ -201,6 +247,7 @@ public final class MainActivity extends AppCompatActivity {
         try {
             startForegroundService(new Intent(this, GuardService.class).setAction(
                     enabled ? GuardService.AUTOMATIC_ON : GuardService.AUTOMATIC_OFF));
+            refreshStatus();
         } catch (RuntimeException exception) {
             setStatus("error", getString(R.string.status_start_error, exception.getMessage()));
         }
@@ -377,6 +424,18 @@ public final class MainActivity extends AppCompatActivity {
             EventLog.write(this, "diagnostics export failed " + exception);
             Toast.makeText(this, R.string.share_error, Toast.LENGTH_LONG).show();
         }
+    }
+
+    @Override protected void onSaveInstanceState(Bundle saved) {
+        saved.putString("local_error", localError);
+        saved.putString("request_boot", BootIdentity.current(this));
+        saved.putBoolean("pending_start", pendingStart);
+        saved.putBoolean("pending_stop", pendingStop);
+        saved.putLong("action_requested_at", actionRequestedAt);
+        if (pendingAutomatic != null) saved.putBoolean("pending_automatic", pendingAutomatic);
+        saved.putLong("mode_requested_at", modeRequestedAt);
+        saved.putBoolean("notification_request_pending", notificationRequestPending);
+        super.onSaveInstanceState(saved);
     }
 
     @Override protected void onNewIntent(Intent intent) {

@@ -120,4 +120,11 @@
     <string name="connection_test_save">Save result</string>
     <string name="connection_test_result">Connection test · Passed checks: %1$d/%2$d</string>
     <string name="notification_alert_channel">OdinDuo recovery alerts</string>
+    <string name="starting_protection">Starting…</string>
+    <string name="stopping_protection">Stopping…</string>
+    <string name="automatic_updating">Updating Auto protect…</string>
+    <string name="chip_starting">Starting</string>
+    <string name="chip_stopping">Stopping</string>
+    <string name="action_timeout">The request is taking longer than expected. Check the status before trying again.</string>
+    <string name="stop_request_error">Could not request Stop. Protection may still be running. Try again or use the notification Stop control.</string>
 </resources>

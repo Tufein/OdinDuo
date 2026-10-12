@@ -124,4 +124,11 @@ Zet adaptieve helderheid uit op de Odin als je de afstelling constant wilt houde
     <string name="connection_test_save">Resultaat opslaan</string>
     <string name="connection_test_result">Verbindingstest: %1$d van %2$d controles geslaagd</string>
     <string name="notification_alert_channel">OdinDuo-herstelmeldingen</string>
+    <string name="starting_protection">Starten…</string>
+    <string name="stopping_protection">Stoppen…</string>
+    <string name="automatic_updating">Automatisch beschermen wordt bijgewerkt…</string>
+    <string name="chip_starting">Starten</string>
+    <string name="chip_stopping">Stoppen</string>
+    <string name="action_timeout">Het verzoek duurt langer dan verwacht. Controleer de status voordat je het opnieuw probeert.</string>
+    <string name="stop_request_error">Stoppen kon niet worden aangevraagd. De bescherming kan nog actief zijn. Probeer het opnieuw of gebruik Stop in de melding.</string>
 </resources>
