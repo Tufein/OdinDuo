@@ -35,6 +35,12 @@ GitHub is the handoff between local and cloud checkouts. In the cloud, fetch and
 continue the reported branch in the environment connected to `Tufein/OdinDuo`.
 A push does not refresh the filesystem of an already running cloud task.
 
+For the user's requested direct file-transfer route, follow
+`docs/direct-cloud-sync.md`. GitHub publication alone does not satisfy direct
+sync. Report whether the Mac endpoint, VPN and actual cloud client were verified;
+never claim that direct sync is active after testing loopback only. Pause the
+sync client before changing Git branches or resetting either checkout.
+
 ## Validation
 
 Use the checks appropriate to the change and the commands documented in
