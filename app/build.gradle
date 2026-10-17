@@ -8,8 +8,8 @@ android {
         applicationId 'nl.retroid.touchguard'
         minSdk 33
         targetSdk 36
-        versionCode 22
-        versionName '2.0.2-beta.1'
+        versionCode 23
+        versionName '2.0.2-beta.2'
         testInstrumentationRunner 'nl.retroid.touchguard.ReliabilityInstrumentation'
     }
     sourceSets {

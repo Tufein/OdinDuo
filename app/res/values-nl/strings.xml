@@ -117,7 +117,7 @@ Zet adaptieve helderheid uit op de Odin als je de afstelling constant wilt houde
     <string name="history_clear_error">Geschiedenis kon niet worden gewist. Probeer opnieuw.</string>
     <string name="connection_test">Verbindings- en wektest</string>
     <string name="connection_test_title">Verbindings- en wektest</string>
-    <string name="connection_test_body">Voer deze korte handmatige controle uit terwijl bescherming actief is. Vink alleen aan wat werkte. OdinDuo slaat geen touchcoördinaten op.</string>
+    <string name="connection_test_body">Voer deze korte handmatige controle uit terwijl bescherming actief is. Vink alleen aan wat je hebt gecontroleerd. Schakel voor de aansluitcontrole Automatische bescherming in of start na opnieuw aansluiten een nieuwe handmatige sessie. Niet-aangevinkte controles zijn niet bevestigd. OdinDuo slaat geen touchcoördinaten op.</string>
     <string name="test_touch_now">Touch werkt terwijl het scherm aangesloten is</string>
     <string name="test_touch_wake">Touch werkt nog na scherm uit en weer aan</string>
     <string name="test_touch_reconnect">Touch werkt nog na loskoppelen en opnieuw aansluiten</string>
@@ -131,4 +131,22 @@ Zet adaptieve helderheid uit op de Odin als je de afstelling constant wilt houde
     <string name="chip_stopping">Stoppen</string>
     <string name="action_timeout">Het verzoek duurt langer dan verwacht. Controleer de status voordat je het opnieuw probeert.</string>
     <string name="stop_request_error">Stoppen kon niet worden aangevraagd. De bescherming kan nog actief zijn. Probeer het opnieuw of gebruik Stop in de melding.</string>
+    <string name="intro_open">Aan de slag</string>
+    <string name="intro_progress">Stap %1$d van %2$d</string>
+    <string name="intro_welcome_title">Welkom bij OdinDuo</string>
+    <string name="intro_welcome_body">Houd het touchscreen van je Retroid Dual Screen werkend tijdens slaap en ontwaken op de AYN Odin 3.\n\nGebruik de primaire Android-gebruiker. Bescherming heeft de ingebouwde AYN-service nodig. Je kiest zelf op het dashboard wanneer je start.</string>
+    <string name="intro_notifications_title">Houd de stopknop bij de hand</string>
+    <string name="intro_notifications_body">Sta meldingen toe om de actuele beschermingsstatus te zien en te stoppen terwijl een andere app geopend is.\n\nDit is optioneel. Je kunt doorgaan zonder toestemming en je keuze later wijzigen in de Android-appinstellingen.</string>
+    <string name="intro_allow_notifications">Meldingen toestaan</string>
+    <string name="intro_notifications_allowed">Meldingen toegestaan</string>
+    <string name="intro_connect_title">Controleer beide schermen</string>
+    <string name="intro_connect_body">Sluit de Retroid Dual Screen aan en controleer of beide schermen beeld tonen.\n\nBlijft het Odin-scherm zwart terwijl de Retroid Android toont? Koppel de Retroid los om het beeld op de Odin terug te krijgen. Open hieronder Hulp bij schermaansluiting voor de volgende controles.</string>
+    <string name="intro_protection_title">Kies hoe je beschermt</string>
+    <string name="intro_protection_body">Bescherming starten geldt voor één sessie. Start na het loskoppelen van het scherm opnieuw voor de volgende sessie.\n\nAutomatische bescherming blijft klaar voor volgende aansluitingen en kan na een herstart van je Odin hervatten. Schakel dit op het dashboard in wanneer je dat wilt.\n\nBescherming stoppen schakelt ook Automatische bescherming uit en herstelt het opgeslagen USB-energiebeheer. Wacht op bevestigd herstel voordat je de app verwijdert.</string>
+    <string name="intro_next">Volgende</string>
+    <string name="intro_back">Terug</string>
+    <string name="intro_skip">Overslaan</string>
+    <string name="intro_finish">Naar dashboard</string>
+    <string name="screen_help_title">Hulp bij schermaansluiting</string>
+    <string name="screen_help_body">Blijft het hoofdscherm van de Odin zwart terwijl de Retroid Android toont?\n\n1. Koppel de Retroid los om het hoofdscherm terug te krijgen.\n\n2. Controleer de Odin/AYN-scherminstellingen op een modus voor alleen het externe scherm of een optie die het ingebouwde scherm uitschakelt. Namen en beschikbaarheid verschillen per firmware. Dit is een mogelijke oorzaak, geen bevestigde diagnose.\n\n3. Sluit opnieuw aan en controleer beide schermen. Blijft het probleem bestaan, deel dan indien mogelijk diagnostiek terwijl het scherm aangesloten is en daarna nogmaals na loskoppelen.\n\nHet rapport bevat de schermstatussen die Android meldt. OdinDuo wijzigt geen schermmodi of helderheid. Het rapport kan niet bevestigen of het fysieke scherm beeld toont.</string>
 </resources>

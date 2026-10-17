@@ -113,7 +113,7 @@
     <string name="history_clear_error">History could not be cleared. Please try again.</string>
     <string name="connection_test">Connection &amp; wake test</string>
     <string name="connection_test_title">Connection &amp; wake test</string>
-    <string name="connection_test_body">Run this short manual check while protection is active. Tick only the steps that worked. OdinDuo records the result without saving touch coordinates.</string>
+    <string name="connection_test_body">Run this short manual check while protection is active. Tick only what you verified. For the reconnect check, enable Auto protect or start a new manual session after reconnecting. Unchecked items are unverified. OdinDuo records the result without saving touch coordinates.</string>
     <string name="test_touch_now">Touch works while connected</string>
     <string name="test_touch_wake">Touch still works after screen-off and wake</string>
     <string name="test_touch_reconnect">Touch still works after disconnect and reconnect</string>
@@ -127,4 +127,22 @@
     <string name="chip_stopping">Stopping</string>
     <string name="action_timeout">The request is taking longer than expected. Check the status before trying again.</string>
     <string name="stop_request_error">Could not request Stop. Protection may still be running. Try again or use the notification Stop control.</string>
+    <string name="intro_open">Getting started</string>
+    <string name="intro_progress">Step %1$d of %2$d</string>
+    <string name="intro_welcome_title">Welcome to OdinDuo</string>
+    <string name="intro_welcome_body">Keep your Retroid Dual Screen touchscreen working through sleep and wake on the AYN Odin 3.\n\nUse the primary Android user. Protection needs the stock AYN service. You choose when to start it from the dashboard.</string>
+    <string name="intro_notifications_title">Keep the Stop control close</string>
+    <string name="intro_notifications_body">Allow notifications to see the current protection status and use Stop while another app is open.\n\nThis is optional. You can continue without allowing them and change your choice in Android app settings later.</string>
+    <string name="intro_allow_notifications">Allow notifications</string>
+    <string name="intro_notifications_allowed">Notifications allowed</string>
+    <string name="intro_connect_title">Check both screens</string>
+    <string name="intro_connect_body">Connect the Retroid Dual Screen and check that you can see an image on both displays.\n\nIf the Odin screen stays black while the Retroid shows Android, unplug the Retroid to recover the Odin view. Open Screen connection help below for the next checks.</string>
+    <string name="intro_protection_title">Choose how to protect</string>
+    <string name="intro_protection_body">Start protection runs one session. After disconnecting the display, start again for the next session.\n\nAuto protect stays ready for future connections and can resume after restarting your Odin. Enable it from the dashboard when you want this.\n\nStop protection also turns Auto protect off and restores the saved USB power settings. Wait for confirmed restoration before uninstalling.</string>
+    <string name="intro_next">Next</string>
+    <string name="intro_back">Back</string>
+    <string name="intro_skip">Skip</string>
+    <string name="intro_finish">Open dashboard</string>
+    <string name="screen_help_title">Screen connection help</string>
+    <string name="screen_help_body">If the main Odin screen stays black while the Retroid shows Android:\n\n1. Unplug the Retroid to recover the main screen.\n\n2. Check the Odin/AYN display settings for an external-only mode or an option that turns off the built-in screen. Names and availability vary with firmware. This is a possible cause, not a confirmed diagnosis.\n\n3. Reconnect and check both screens. If the issue remains, share diagnostics while connected if you can, then again after unplugging.\n\nThe report includes display states reported by Android. OdinDuo does not change display modes or brightness. The report cannot confirm whether the physical panel is showing an image.</string>
 </resources>

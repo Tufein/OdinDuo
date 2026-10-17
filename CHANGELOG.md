@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.2-beta.2 — Unreleased
+
+- Replace the one-shot setup prompt with an optional four-step introduction in English and Dutch. Resume the saved step after interruption or rotation; distinguish finishing from skipping and allow replay from the dashboard.
+- Explain notification permission before requesting it, and request it only after an explicit tap. Denial does not block the introduction or enable protection.
+- Add Screen connection help for a black Odin display with Android visible on the Retroid. Provide recovery guidance, display-settings access and diagnostics without claiming a confirmed cause or changing display modes.
+- Include read-only Android display state/mode observations, firmware and capture time in support exports.
+- Consume explicit Start intents so recreation cannot replay an old request. Explain timed-out Auto protect changes and prevent a delayed introduction from covering an open setup check.
+- Clarify that reconnect testing needs Auto protect or a new manual session after reconnecting; unchecked checklist items remain unverified.
+- Prepare version code 23 with the same new signing identity as beta.1. The main-display blackout still requires physical diagnosis; no hardware fix or completed VirusTotal scan is claimed.
+
 ## 2.0.2-beta.1 — Unreleased
 
 - Show progress and explicit Starting/Stopping labels while the dashboard waits for protection changes.
