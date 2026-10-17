@@ -29,7 +29,7 @@ public class MainActivityTest {
         RuntimeEnvironment.getApplication().getSharedPreferences("appearance", android.content.Context.MODE_PRIVATE)
                 .edit().putBoolean("notifications_asked", true).commit();
         RuntimeEnvironment.getApplication().getSharedPreferences("MainActivity", android.content.Context.MODE_PRIVATE)
-                .edit().putBoolean("guided_setup_seen", true).commit();
+                .edit().putBoolean(OnboardingDialog.COMPLETE, true).commit();
     }
 
     @Test public void setupIsReachableFromDashboard() {
@@ -97,6 +97,8 @@ public class MainActivityTest {
             assertTrue(activity.findViewById(R.id.automatic).isEnabled());
             assertTrue(activity.findViewById(R.id.start).isEnabled());
             assertEquals(activity.getString(R.string.automatic_off), ((TextView) activity.findViewById(R.id.automatic_summary)).getText().toString());
+            assertEquals(activity.getString(R.string.status_settings_error),
+                    org.robolectric.shadows.ShadowToast.getTextOfLatestToast());
         }
     }
 
@@ -127,7 +129,7 @@ public class MainActivityTest {
 
     @Test public void firstSetupStillWaitsForNotificationPermissionAfterRecreation() {
         RuntimeEnvironment.getApplication().getSharedPreferences("MainActivity", android.content.Context.MODE_PRIVATE)
-                .edit().putBoolean("guided_setup_seen", false).commit();
+                .edit().putBoolean(OnboardingDialog.COMPLETE, false).commit();
         Bundle saved = new Bundle();
         saved.putString("request_boot", "boot:7");
         saved.putBoolean("notification_request_pending", true);
@@ -164,6 +166,49 @@ public class MainActivityTest {
             Intent intent = Shadows.shadowOf(activity).getNextStartedActivity();
             assertEquals(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, intent.getAction());
             assertEquals("package:nl.retroid.touchguard", intent.getDataString());
+        }
+    }
+
+    @Test public void startIntentIsConsumedAndNotReplayedAfterRecreation() throws Exception {
+        Intent intent = new Intent(RuntimeEnvironment.getApplication(), MainActivity.class)
+                .putExtra("start_guard", true);
+        try (ActivityController<MainActivity> controller = Robolectric.buildActivity(MainActivity.class, intent).setup()) {
+            MainActivity activity = controller.get();
+            assertFalse(activity.getIntent().hasExtra("start_guard"));
+            java.io.File events = new java.io.File(activity.getFilesDir(), "guard-events.txt");
+            String before = new String(java.nio.file.Files.readAllBytes(events.toPath()), java.nio.charset.StandardCharsets.UTF_8);
+            assertTrue(before.contains("power protection requested"));
+            controller.recreate();
+            assertEquals(before, new String(java.nio.file.Files.readAllBytes(events.toPath()), java.nio.charset.StandardCharsets.UTF_8));
+        }
+    }
+
+    @Test public void manualSetupDoesNotGetCoveredByDelayedOnboarding() {
+        RuntimeEnvironment.getApplication().getSharedPreferences("MainActivity", android.content.Context.MODE_PRIVATE)
+                .edit().putBoolean(OnboardingDialog.COMPLETE, false).commit();
+        try (ActivityController<MainActivity> controller = Robolectric.buildActivity(MainActivity.class).setup()) {
+            MainActivity activity = controller.get();
+            activity.findViewById(R.id.setup).performClick();
+            android.app.Dialog setup = ShadowDialog.getLatestDialog();
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(Duration.ofSeconds(1));
+            assertTrue(setup.isShowing());
+            assertNull(activity.getSupportFragmentManager().findFragmentByTag(OnboardingDialog.TAG));
+            assertSame(setup, ShadowDialog.getLatestDialog());
+        }
+    }
+
+    @Test public void screenHelpDoesNotGetCoveredByDelayedOnboarding() {
+        RuntimeEnvironment.getApplication().getSharedPreferences("MainActivity", android.content.Context.MODE_PRIVATE)
+                .edit().putBoolean(OnboardingDialog.COMPLETE, false).commit();
+        try (ActivityController<MainActivity> controller = Robolectric.buildActivity(MainActivity.class).setup()) {
+            MainActivity activity = controller.get();
+            activity.findViewById(R.id.screen_help).performClick();
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(Duration.ofSeconds(1));
+            assertNull(activity.getSupportFragmentManager().findFragmentByTag(OnboardingDialog.TAG));
+            controller.pause().stop().start().resume().visible();
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(Duration.ofSeconds(1));
+            assertNull(activity.getSupportFragmentManager().findFragmentByTag(OnboardingDialog.TAG));
+            assertNotNull(activity.getSupportFragmentManager().findFragmentByTag(DisplayHelpDialog.TAG));
         }
     }
 }

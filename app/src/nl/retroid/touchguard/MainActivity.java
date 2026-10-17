@@ -54,11 +54,13 @@ public final class MainActivity extends AppCompatActivity {
     private long actionRequestedAt;
     private static final long REQUEST_TIMEOUT_MS = 10000;
     private boolean notificationRequestPending;
+    private androidx.appcompat.app.AlertDialog setupDialog;
     private final Runnable firstSetup = () -> {
         if (!isFinishing() && !isDestroyed() && !notificationRequestPending
-                && !getPreferences(MODE_PRIVATE).getBoolean("guided_setup_seen", false)) {
-            showSetup();
-            getPreferences(MODE_PRIVATE).edit().putBoolean("guided_setup_seen", true).apply();
+                && getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
+                && getSupportFragmentManager().findFragmentByTag(DisplayHelpDialog.TAG) == null
+                && (setupDialog == null || !setupDialog.isShowing()) && OnboardingDialog.pending(this)) {
+            OnboardingDialog.open(this, false);
         }
     };
 
@@ -121,6 +123,8 @@ public final class MainActivity extends AppCompatActivity {
             if (!updatingSwitch) setAutomatic(enabled);
         });
         findViewById(R.id.appearance).setOnClickListener(view -> chooseAppearance());
+        findViewById(R.id.onboarding).setOnClickListener(view -> OnboardingDialog.open(this, true));
+        findViewById(R.id.screen_help).setOnClickListener(view -> showDisplayHelp());
         findViewById(R.id.brightness).setOnClickListener(view -> showBrightnessHelp());
         findViewById(R.id.help).setOnClickListener(view -> showHelp());
         findViewById(R.id.setup).setOnClickListener(view -> showSetup());
@@ -128,24 +132,23 @@ public final class MainActivity extends AppCompatActivity {
         findViewById(R.id.error_diagnostics).setOnClickListener(view -> shareDiagnostics());
         findViewById(R.id.history).setOnClickListener(view -> showHistory());
         findViewById(R.id.connection_test).setOnClickListener(view -> showConnectionTest());
-        findViewById(R.id.notification_hint).setOnClickListener(view -> openAppSettings());
+        findViewById(R.id.notification_hint).setOnClickListener(view -> requestNotificationAccess());
         refreshStatus();
-
-        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-                && !getSharedPreferences("appearance", MODE_PRIVATE).getBoolean("notifications_asked", false)) {
-            getSharedPreferences("appearance", MODE_PRIVATE).edit().putBoolean("notifications_asked", true).apply();
-            notificationRequestPending = true;
-            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
-        }
-        handleIntent(getIntent());
+        if (saved == null) handleIntent(getIntent());
     }
 
     private void refreshStatus() {
         GuardStatusStore.Status snapshot = GuardStatusStore.read(this);
         long now = android.os.SystemClock.elapsedRealtime();
         boolean enabled = GuardPreferences.automatic(this);
-        if (pendingAutomatic != null && (enabled == pendingAutomatic
-                || now < modeRequestedAt || now - modeRequestedAt > REQUEST_TIMEOUT_MS)) pendingAutomatic = null;
+        if (pendingAutomatic != null) {
+            if (enabled == pendingAutomatic) {
+                pendingAutomatic = null;
+            } else if (now < modeRequestedAt || now - modeRequestedAt > REQUEST_TIMEOUT_MS) {
+                pendingAutomatic = null;
+                Toast.makeText(this, R.string.status_settings_error, Toast.LENGTH_LONG).show();
+            }
+        }
         if (pendingStart && snapshot.running) pendingStart = false;
         if (pendingStop && (!snapshot.running || "stopping".equals(snapshot.state))) pendingStop = false;
         if ((pendingStart || pendingStop) && (now < actionRequestedAt || now - actionRequestedAt > REQUEST_TIMEOUT_MS)) {
@@ -254,7 +257,9 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void handleIntent(Intent intent) {
-        if (intent.getBooleanExtra("start_guard", false)) startGuard();
+        boolean requested = intent.getBooleanExtra("start_guard", false);
+        intent.removeExtra("start_guard");
+        if (requested) startGuard();
         if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(intent.getAction()) && GuardPreferences.automatic(this)) {
             UsbDevice usb = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice.class);
             if (usb != null && UsbIdentity.matches(usb.getVendorId(), usb.getProductId())) startGuard();
@@ -278,13 +283,34 @@ public final class MainActivity extends AppCompatActivity {
     private void showBrightnessHelp() {
         new MaterialAlertDialogBuilder(this).setTitle(R.string.brightness_title)
                 .setMessage(R.string.brightness_body)
-                .setPositiveButton(R.string.display_settings, (dialog, which) -> {
-                    try {
-                        startActivity(new Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS));
-                    } catch (android.content.ActivityNotFoundException exception) {
-                        Toast.makeText(this, R.string.display_settings_unavailable, Toast.LENGTH_SHORT).show();
-                    }
-                }).setNegativeButton(android.R.string.cancel, null).show();
+                .setPositiveButton(R.string.display_settings, (dialog, which) -> openDisplaySettings())
+                .setNegativeButton(android.R.string.cancel, null).show();
+    }
+
+    void openDisplaySettings() {
+        try {
+            startActivity(new Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS));
+        } catch (android.content.ActivityNotFoundException exception) {
+            Toast.makeText(this, R.string.display_settings_unavailable, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    void showDisplayHelp() {
+        androidx.fragment.app.FragmentManager manager = getSupportFragmentManager();
+        if (!manager.isStateSaved() && manager.findFragmentByTag(DisplayHelpDialog.TAG) == null)
+            new DisplayHelpDialog().showNow(manager, DisplayHelpDialog.TAG);
+    }
+
+    void requestNotificationAccess() {
+        if (notificationRequestPending
+                || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return;
+        if (getSharedPreferences("appearance", MODE_PRIVATE).getBoolean("notifications_asked", false)) {
+            openAppSettings();
+        } else {
+            notificationRequestPending = true;
+            getSharedPreferences("appearance", MODE_PRIVATE).edit().putBoolean("notifications_asked", true).apply();
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
+        }
     }
 
     private void showHelp() {
@@ -295,7 +321,8 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void showSetup() {
-        new MaterialAlertDialogBuilder(this).setTitle(R.string.setup_title).setMessage(SetupReport.read(this))
+        if (setupDialog != null && setupDialog.isShowing()) return;
+        setupDialog = new MaterialAlertDialogBuilder(this).setTitle(R.string.setup_title).setMessage(SetupReport.read(this))
                 .setPositiveButton(R.string.tile_add, (dialog, which) -> addQuickTile())
                 .setNeutralButton(R.string.app_settings, (dialog, which) -> openAppSettings())
                 .setNegativeButton(android.R.string.cancel, null).show();
@@ -391,14 +418,16 @@ public final class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void shareDiagnostics() {
+    void shareDiagnostics() {
         try {
             GuardStatusStore.Status snapshot = GuardStatusStore.read(this);
             String report = "OdinDuo " + BuildConfig.VERSION_NAME + "\nAndroid " + android.os.Build.VERSION.RELEASE
                     + "\nDevice: " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL
+                    + "\nFirmware: " + android.os.Build.DISPLAY + "\nCaptured at: " + java.time.Instant.now()
                     + "\nAuto protect: " + GuardPreferences.automatic(this) + "\nState: " + snapshot.state
                     + "\n" + snapshot.text + "\n\nPower guard\n" + VendorBridge.readLog(this);
             report += "\n\nSetup checks\n" + SetupReport.read(AppLanguage.english(this));
+            report += "\n\n" + DisplayReport.read(this);
             report += "\n\nSession history\n" + HistoryStore.export(this);
             File events = new File(getFilesDir(), "guard-events.txt");
             if (events.isFile()) {
@@ -456,6 +485,9 @@ public final class MainActivity extends AppCompatActivity {
         super.onRequestPermissionsResult(requestCode, permissions, results);
         if (requestCode == 1) {
             notificationRequestPending = false;
+            androidx.fragment.app.Fragment fragment = getSupportFragmentManager().findFragmentByTag(OnboardingDialog.TAG);
+            if (fragment instanceof OnboardingDialog) ((OnboardingDialog) fragment).refreshPage();
+            refreshStatus();
             if (getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED))
                 handler.postDelayed(firstSetup, 450);
         }

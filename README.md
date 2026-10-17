@@ -16,7 +16,7 @@ Debug/release builds, Android lint and GitHub CI pass. Stock Odin 3 tests cover 
 
 **2.0.1** strengthens boot/session recovery, elapsed timing, local history, live English/Dutch status and Retry after an unexpected helper stop. See the [release notes](docs/releases/2.0.1.md) and the [roadmap](docs/roadmap.md) for planned improvements.
 
-A **2.0.2-beta.1** prerelease is being prepared with clearer action feedback and regression-tested dashboard controls. See [its release notes](docs/releases/2.0.2-beta.1.md). It uses a new signing certificate and requires a clean reinstall after successful Stop/restoration; the published stable 2.0.1 remains available with its existing certificate. VirusTotal scanning is pending.
+A **2.0.2-beta.2** prerelease is being prepared with resumable onboarding, opt-in notification permission, screen-connection help and read-only display diagnostics, on top of the improved action feedback. See [its release notes](docs/releases/2.0.2-beta.2.md). It uses a new signing certificate and requires a clean reinstall after successful Stop/restoration; the published stable 2.0.1 remains available with its existing certificate. VirusTotal scanning is pending.
 
 ## Use
 
@@ -44,6 +44,10 @@ Automatic brightness synchronisation is **not available on the tested Odin 3 + R
 **Compatibility:** tested on an AYN Odin 3 running Android 15, firmware `Odin3_V1.0.0.187_20260616_193307_user`, with the Retroid touchscreen `222a:0001`. Other devices, firmware versions and USB topologies are unverified. Android 13 or newer is required, but the stock AYN service and the expected Odin 3 USB topology must also be present.
 
 Keeping USB awake may use extra battery, including during sleep. Battery impact has not been measured. This prevents the observed failure during an active session; it is not a guaranteed recovery method for a touchscreen that has already stopped responding.
+
+**Getting started** opens a four-step introduction that saves your place. Notifications are optional and requested only when you choose Allow notifications. Finishing or skipping does not start protection; choose Start protection or Auto protect yourself on the dashboard.
+
+**Screen connection help** is available from the dashboard, including while protection is off. If the Odin display stays black while the Retroid shows Android, unplug the Retroid to recover the Odin view, then check the firmware display settings. This pattern suggests a display-mode or firmware issue but does not establish its cause. Share diagnostics while connected if possible, then after unplugging: the export includes the firmware and display states/modes reported by Android. The app does not change display routing or brightness, and Android state alone cannot confirm what the physical panel shows.
 
 ## How it works
 
@@ -111,7 +115,7 @@ For an existing installation, preserve its signing key when building updates. Th
 
 GitHub Actions builds both the debug and instrumentation APKs, runs `testDebugUnitTest`, `lintDebug` and `tools/check.sh` for every pull request and pushes to main or Codex branches. The workflow pins actions to commit hashes, installs SDK 36 and build-tools 36.0.0, and requires no release signing key. Its debug artifacts are retained for seven days and use a development certificate; use the release assets for updates to an installed public version. Instrumentation is compiled in CI; run its storage/language suite only on a disposable emulator as described in the [2.0.1 notes](docs/releases/2.0.1.md). The protected main branch requires an up-to-date PR with the Android build and checks result from GitHub Actions, including for administrators.
 
-The nine host UI tests use Robolectric on API 35 and check setup/error navigation, request feedback, same-boot recreation and timeouts, previous-boot rejection, Dutch labels, notification-permission ordering and landscape resources. These tests exercise Android views without an emulator.
+The 26 host Android tests use Robolectric on API 35. They check dashboard requests and recreation, resumable onboarding, explicit notification permission, Finish/Skip/replay behavior, Dutch landscape resources and read-only display reporting. These tests exercise Android views without an emulator.
 
 The checks verify process identity parsing, rejection of truncated records, shell argument quoting without command substitution, USB descriptor/target validation, and log parsing that honours the latest power state and gives restoration failures precedence. The shell integration test runs the real guard against temporary fake proc/USB files: process loss preserves power settings, a reused PID is rejected, a new service adopts the session without resetting USB, explicit Stop restores promptly, and an expired restart grace restores the original settings. It also checks detach acknowledgements across three connection leases, rejects invalid acknowledgement tokens and ensures pending snapshots cannot be acknowledged as successful. It never writes host or connected-device power settings. Emulator checks cannot establish that physical Retroid touch survives sleep.
 
