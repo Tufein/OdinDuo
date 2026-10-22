@@ -2,13 +2,13 @@
     <string name="app_name">OdinDuo</string>
     <string name="app_subtitle">Je tweede scherm, altijd gesynchroniseerd.</string>
     <string name="status_label">TOUCHBESCHERMING</string>
-    <string name="title_idle">Klaar wanneer jij dat bent.</string>
-    <string name="title_waiting">Aansluiten. Spelen. Herhalen.</string>
+    <string name="title_idle">Bescherming staat uit</string>
+    <string name="title_waiting">Wachten op je scherm</string>
     <string name="title_starting">Verbinding maken…</string>
-    <string name="title_active">Blijf spelen.</string>
+    <string name="title_active">Aanraking is beschermd</string>
     <string name="title_stopping">Afronden…</string>
     <string name="title_recovering">We herstellen de verbinding…</string>
-    <string name="title_error">Actie nodig.</string>
+    <string name="title_error">Actie nodig</string>
     <string name="device_connected">Retroid-scherm aangesloten</string>
     <string name="device_disconnected">Wachten op je Retroid-scherm</string>
     <string name="start_protection">Bescherming starten</string>
