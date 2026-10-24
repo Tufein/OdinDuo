@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.2-beta.3 — Unreleased
+
+- Replace a helper left by an older APK automatically when protection next starts, restoring USB settings first. Updating no longer needs a manual Stop and Auto protect toggle.
+- Use plain-language dashboard titles in English and Dutch.
+- Add ROADMAP.md with usability as priority 1.
+- Prepare version code 24 with the signing identity of beta.1 and beta.2. No signed APK, hardware validation or VirusTotal scan is claimed yet.
+
 ## 2.0.2-beta.2 — Unreleased
 
 - Replace the one-shot setup prompt with an optional four-step introduction in English and Dutch. Resume the saved step after interruption or rotation; distinguish finishing from skipping and allow replay from the dashboard.
