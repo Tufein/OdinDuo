@@ -12,7 +12,7 @@ Download [OdinDuo 2.0.1](https://github.com/Tufein/OdinDuo/releases/tag/v2.0.1),
 
 Debug/release builds, Android lint and GitHub CI pass. Stock Odin 3 tests cover update, service restart, recents dismissal, notification Retry and automatic startup after reboot/unlock. The tester confirms working touch through three sleep/wake cycles and two reconnects. See the [release validation and recording limits](docs/releases/2.0.1.md).
 
-**After updating, Stop protection once and enable Auto protect again** to start the updated helper. Version 2.0 adds session duration, bounded local history, guided setup, a manual connection and wake checklist, clearer recovery notifications and optional Dutch per-app language support. See [the 2.0.0 release notes](docs/releases/2.0.0.md).
+Updating needs no extra steps: the next time protection starts, OdinDuo replaces a helper left by an older version automatically. Version 2.0 adds session duration, bounded local history, guided setup, a manual connection and wake checklist, clearer recovery notifications and optional Dutch per-app language support. See [the 2.0.0 release notes](docs/releases/2.0.0.md).
 
 **2.0.1** strengthens boot/session recovery, elapsed timing, local history, live English/Dutch status and Retry after an unexpected helper stop. See the [release notes](docs/releases/2.0.1.md) and the [roadmap](docs/roadmap.md) for planned improvements.
 
@@ -66,7 +66,7 @@ The guard:
 
 OdinDuo checks the helper’s session heartbeat before reporting protection. If it disappears, the UI shows **Recovering** rather than a historical **Protected** sample. After a grace period, Auto protect confirms USB restoration before relaunching; manual sessions end with an error. Unexpected helper exits are limited to two recovery attempts per 60 seconds of awake uptime. Normal display detach/reconnect is not counted as a failure. The grace period uses Android uptime, excluding deep sleep, so a stale heartbeat immediately after waking does not trigger a restart. Persistent failure or unconfirmed restoration stops the session and leaves diagnostics available. With notifications allowed, a failure notification offers **Retry protection**; the dashboard offers the same action. Retrying must first confirm restoration of any previous session, even if its marker is already missing.
 
-In beta.2, the helper atomically publishes its current WAITING, STARTING or ACTIVE observation alongside its session heartbeat. A busy diagnostic log cannot push the last good power sample outside the read window and cause a healthy helper to stop. Fatal log errors and confirmed shutdown still take precedence. A session adopted from an earlier APK remains compatible; after upgrading, **Stop protection once and re-enable Auto protect** to start the updated helper.
+In beta.2, the helper atomically publishes its current WAITING, STARTING or ACTIVE observation alongside its session heartbeat. A busy diagnostic log cannot push the last good power sample outside the read window and cause a healthy helper to stop. Fatal log errors and confirmed shutdown still take precedence. A helper left by an earlier APK is restored and replaced automatically when protection next starts.
 
 Restoration now verifies that each written value can be read back unchanged. Read failures, invalid snapshots and mismatched readback retain the snapshots and prevent a successful Stop acknowledgement or new session.
 

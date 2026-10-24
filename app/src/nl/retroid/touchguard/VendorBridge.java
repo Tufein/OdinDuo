@@ -81,8 +81,24 @@ final class VendorBridge {
         }
     }
 
+    /** Helpers launched before the version marker existed have no file, so they count as outdated. */
+    private static boolean helperCurrent(Context context) {
+        try {
+            return Integer.toString(BuildConfig.VERSION_CODE).equals(new String(
+                    Files.readAllBytes(new File(context.getFilesDir(), "guard-version").toPath()), StandardCharsets.UTF_8).trim());
+        } catch (Exception exception) { return false; }
+    }
+
     static void start(Context context) throws Exception {
         if (Process.myUid() >= 100000) throw new IllegalStateException("Use OdinDuo in the primary Android user profile.");
+        boolean replaced = false;
+        if (guardAlive(context) && !helperCurrent(context)) {
+            // A helper started by an older APK keeps running the old script. Restore its USB settings
+            // and start the bundled one, so updating needs no manual Stop and Auto protect toggle.
+            EventLog.write(context, "helper from an earlier version replaced");
+            stop(context);
+            replaced = true;
+        }
         if (guardAlive(context)) {
             String token = new String(Files.readAllBytes(new File(context.getFilesDir(), "guard-enabled").toPath()), StandardCharsets.UTF_8).trim();
             writeOwner(context, token);
@@ -91,7 +107,7 @@ final class VendorBridge {
         }
         // Failed cleanup removes the marker but can retain root-owned restoration snapshots.
         // Confirm recovery through the previous helper before replacing its script or log.
-        if (new File(context.getFilesDir(), "power-guard.sh").isFile()) stop(context);
+        if (!replaced && new File(context.getFilesDir(), "power-guard.sh").isFile()) stop(context);
         File script = new File(context.getFilesDir(), "power-guard.sh");
         try (InputStream input = context.getResources().openRawResource(R.raw.power_guard);
              OutputStream output = context.openFileOutput(script.getName(), Context.MODE_PRIVATE)) {
@@ -107,6 +123,9 @@ final class VendorBridge {
             marker.write(token.getBytes(StandardCharsets.UTF_8));
         }
         writeOwner(context, token);
+        try (OutputStream version = context.openFileOutput("guard-version", Context.MODE_PRIVATE)) {
+            version.write(Integer.toString(BuildConfig.VERSION_CODE).getBytes(StandardCharsets.UTF_8));
+        }
         AtomicFile bootFile = new AtomicFile(new File(context.getFilesDir(), "guard-boot"));
         FileOutputStream bootOutput = null;
         try {
@@ -135,6 +154,7 @@ final class VendorBridge {
         context.deleteFile("guard-enabled");
         new AtomicFile(new File(context.getFilesDir(), "guard-owner")).delete();
         context.deleteFile("guard-heartbeat");
+        context.deleteFile("guard-version");
         new AtomicFile(new File(context.getFilesDir(), "guard-boot")).delete();
         File script = new File(context.getFilesDir(), "power-guard.sh");
         if (!script.isFile()) return;

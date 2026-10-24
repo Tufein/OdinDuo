@@ -2,13 +2,13 @@
     <string name="app_name">OdinDuo</string>
     <string name="app_subtitle">Your second screen, in sync.</string>
     <string name="status_label">TOUCH PROTECTION</string>
-    <string name="title_idle">Ready when you are.</string>
-    <string name="title_waiting">Connect. Play. Repeat.</string>
+    <string name="title_idle">Protection is off</string>
+    <string name="title_waiting">Waiting for your screen</string>
     <string name="title_starting">Getting connected…</string>
-    <string name="title_active">Keep playing.</string>
+    <string name="title_active">Touch is protected</string>
     <string name="title_stopping">Wrapping up…</string>
     <string name="title_recovering">Getting back on track…</string>
-    <string name="title_error">Needs attention.</string>
+    <string name="title_error">Needs your attention</string>
     <string name="device_connected">Retroid display connected</string>
     <string name="device_disconnected">Waiting for your Retroid display</string>
     <string name="start_protection">Start protection</string>
