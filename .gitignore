@@ -8,4 +8,5 @@ local.properties
 *.keystore
 __pycache__/
 .DS_Store
+.odinduo-sync/
 app/res/raw/power_guard.sh

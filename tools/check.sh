@@ -23,4 +23,6 @@ java -cp app/build/check-classes nl.retroid.touchguard.GuardHeartbeatTest
 java -cp app/build/check-classes nl.retroid.touchguard.SessionClockTest
 for script in app/build.sh capture.sh tools/*.sh; do bash -n "$script"; done
 python3 -m py_compile tools/collect-usb-open-test.py
+python3 -m py_compile tools/project-sync.py tools/start-project-sync-mac.py
+python3 -m unittest discover -s tools/tests -p 'test_project_sync.py'
 python3 app/tests/guard_lifecycle_test.py
