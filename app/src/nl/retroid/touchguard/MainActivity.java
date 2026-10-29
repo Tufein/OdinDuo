@@ -55,11 +55,12 @@ public final class MainActivity extends AppCompatActivity {
     private static final long REQUEST_TIMEOUT_MS = 10000;
     private boolean notificationRequestPending;
     private androidx.appcompat.app.AlertDialog setupDialog;
+    private androidx.appcompat.app.AlertDialog dashboardDialog;
     private final Runnable firstSetup = () -> {
         if (!isFinishing() && !isDestroyed() && !notificationRequestPending
                 && getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
                 && getSupportFragmentManager().findFragmentByTag(DisplayHelpDialog.TAG) == null
-                && (setupDialog == null || !setupDialog.isShowing()) && OnboardingDialog.pending(this)) {
+                && (dashboardDialog == null || !dashboardDialog.isShowing()) && OnboardingDialog.pending(this)) {
             OnboardingDialog.open(this, false);
         }
     };
@@ -269,7 +270,7 @@ public final class MainActivity extends AppCompatActivity {
     private void chooseAppearance() {
         int current = getSharedPreferences("appearance", MODE_PRIVATE).getInt("theme", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
         int selected = current == AppCompatDelegate.MODE_NIGHT_NO ? 1 : current == AppCompatDelegate.MODE_NIGHT_YES ? 2 : 0;
-        new MaterialAlertDialogBuilder(this).setTitle(R.string.appearance_title)
+        showDashboardDialog(new MaterialAlertDialogBuilder(this).setTitle(R.string.appearance_title)
                 .setSingleChoiceItems(new String[]{getString(R.string.theme_system), getString(R.string.theme_light),
                         getString(R.string.theme_dark)}, selected, (dialog, which) -> {
                     int mode = which == 1 ? AppCompatDelegate.MODE_NIGHT_NO : which == 2
@@ -277,14 +278,14 @@ public final class MainActivity extends AppCompatActivity {
                     getSharedPreferences("appearance", MODE_PRIVATE).edit().putInt("theme", mode).apply();
                     dialog.dismiss();
                     AppCompatDelegate.setDefaultNightMode(mode);
-                }).setNegativeButton(android.R.string.cancel, null).show();
+                }).setNegativeButton(android.R.string.cancel, null));
     }
 
     private void showBrightnessHelp() {
-        new MaterialAlertDialogBuilder(this).setTitle(R.string.brightness_title)
+        showDashboardDialog(new MaterialAlertDialogBuilder(this).setTitle(R.string.brightness_title)
                 .setMessage(R.string.brightness_body)
                 .setPositiveButton(R.string.display_settings, (dialog, which) -> openDisplaySettings())
-                .setNegativeButton(android.R.string.cancel, null).show();
+                .setNegativeButton(android.R.string.cancel, null));
     }
 
     void openDisplaySettings() {
@@ -314,33 +315,38 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void showHelp() {
-        new MaterialAlertDialogBuilder(this).setTitle(R.string.help_title).setMessage(R.string.help_body)
+        showDashboardDialog(new MaterialAlertDialogBuilder(this).setTitle(R.string.help_title).setMessage(R.string.help_body)
                 .setPositiveButton(android.R.string.ok, null)
                 .setNegativeButton(R.string.setup_title, (dialog, which) -> showSetup())
-                .setNeutralButton(R.string.share_diagnostics, (dialog, which) -> shareDiagnostics()).show();
+                .setNeutralButton(R.string.share_diagnostics, (dialog, which) -> shareDiagnostics()));
     }
 
     private void showSetup() {
         if (setupDialog != null && setupDialog.isShowing()) return;
-        setupDialog = new MaterialAlertDialogBuilder(this).setTitle(R.string.setup_title).setMessage(SetupReport.read(this))
+        setupDialog = showDashboardDialog(new MaterialAlertDialogBuilder(this).setTitle(R.string.setup_title).setMessage(SetupReport.read(this))
                 .setPositiveButton(R.string.tile_add, (dialog, which) -> addQuickTile())
                 .setNeutralButton(R.string.app_settings, (dialog, which) -> openAppSettings())
-                .setNegativeButton(android.R.string.cancel, null).show();
+                .setNegativeButton(android.R.string.cancel, null));
+    }
+
+    private androidx.appcompat.app.AlertDialog showDashboardDialog(MaterialAlertDialogBuilder builder) {
+        dashboardDialog = builder.show();
+        return dashboardDialog;
     }
 
     private void showHistory() {
-        new MaterialAlertDialogBuilder(this).setTitle(R.string.history_title)
+        showDashboardDialog(new MaterialAlertDialogBuilder(this).setTitle(R.string.history_title)
                 .setMessage(HistoryStore.display(this))
                 .setPositiveButton(R.string.share_diagnostics, (dialog, which) -> shareDiagnostics())
                 .setNeutralButton(R.string.history_clear, (dialog, which) ->
-                        new MaterialAlertDialogBuilder(this).setTitle(R.string.history_clear_title)
+                        showDashboardDialog(new MaterialAlertDialogBuilder(this).setTitle(R.string.history_clear_title)
                                 .setMessage(R.string.history_clear_body)
                                 .setPositiveButton(R.string.history_clear, (confirm, ignored) -> {
                                     boolean cleared = HistoryStore.clear(this);
                                     Toast.makeText(this, cleared ? R.string.history_cleared : R.string.history_clear_error,
                                             Toast.LENGTH_SHORT).show();
-                                }).setNegativeButton(android.R.string.cancel, null).show())
-                .setNegativeButton(android.R.string.cancel, null).show();
+                                }).setNegativeButton(android.R.string.cancel, null)))
+                .setNegativeButton(android.R.string.cancel, null));
     }
 
     private void showConnectionTest() {
@@ -364,7 +370,7 @@ public final class MainActivity extends AppCompatActivity {
         }
         android.widget.ScrollView scroll = new android.widget.ScrollView(this);
         scroll.addView(content);
-        new MaterialAlertDialogBuilder(this).setTitle(R.string.connection_test_title)
+        showDashboardDialog(new MaterialAlertDialogBuilder(this).setTitle(R.string.connection_test_title)
                 .setView(scroll)
                 .setPositiveButton(R.string.connection_test_save, (dialog, which) -> {
                     int passed = 0;
@@ -373,7 +379,7 @@ public final class MainActivity extends AppCompatActivity {
                     HistoryStore.record(this, result);
                     Toast.makeText(this, result, Toast.LENGTH_LONG).show();
                     refreshStatus();
-                }).setNegativeButton(android.R.string.cancel, null).show();
+                }).setNegativeButton(android.R.string.cancel, null));
     }
 
     private String sessionSummary(GuardStatusStore.Status snapshot) {

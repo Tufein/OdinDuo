@@ -274,21 +274,36 @@ public final class GuardService extends Service {
         worker.removeCallbacksAndMessages(null);
         GuardStatusStore.write(this, true, "stopping", R.string.status_stopping);
         worker.post(() -> {
+            boolean interrupted = false;
             try {
-                VendorBridge.stop(this);
-                // stop() checks a unique acknowledgement and pending snapshots. An older
-                // RESTORE FAILED line must not override a later successful recovery.
-            } catch (Exception exception) {
-                EventLog.write(this, "vendor stop failed " + exception);
-                finalResource = R.string.status_stop_error;
-                finalArguments = new Object[0];
-                finalState = "error";
+                // Even an instance destroyed before its launch task runs must stay behind
+                // earlier cleanup. Otherwise its latch could release a new USB lease while
+                // an older stop is still able to tear that lease down.
+                while (true) {
+                    try {
+                        startupBarrier.await();
+                        break;
+                    } catch (InterruptedException exception) {
+                        interrupted = true;
+                    }
+                }
+                try {
+                    VendorBridge.stop(this);
+                    // A unique acknowledgement, not an old RESTORE FAILED line, confirms Stop.
+                } catch (Exception exception) {
+                    EventLog.write(this, "vendor stop failed " + exception);
+                    finalResource = R.string.status_stop_error;
+                    finalArguments = new Object[0];
+                    finalState = "error";
+                }
+                GuardStatusStore.write(this, false, finalState, finalResource, finalArguments);
+                showFailureNotification();
+                EventLog.write(this, "service stopped: " + AppLanguage.english(this).getString(finalResource, finalArguments));
+            } finally {
+                restoration.countDown();
+                thread.quitSafely();
+                if (interrupted) Thread.currentThread().interrupt();
             }
-            GuardStatusStore.write(this, false, finalState, finalResource, finalArguments);
-            showFailureNotification();
-            EventLog.write(this, "service stopped: " + AppLanguage.english(this).getString(finalResource, finalArguments));
-            restoration.countDown();
-            thread.quitSafely();
         });
         stopForeground(STOP_FOREGROUND_REMOVE);
         super.onDestroy();
