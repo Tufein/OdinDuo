@@ -2,13 +2,12 @@
 
 ## 2.0.2-beta.3 — Unreleased
 
-- Serialize every service cleanup behind earlier restoration, including a service destroyed before its launch task runs; always release its completion barrier when cleanup ends.
-- Keep delayed onboarding behind all dashboard dialogs, including appearance, brightness, help, history and the connection checklist.
-
 - Replace a helper left by an older APK automatically when protection next starts, restoring USB settings first. Updating no longer needs a manual Stop and Auto protect toggle.
 - Use plain-language dashboard titles in English and Dutch.
 - Add ROADMAP.md with usability as priority 1.
 - Prepare version code 24 with the signing identity of beta.1 and beta.2. No signed APK, hardware validation or VirusTotal scan is claimed yet.
+- Serialize every service cleanup behind earlier restoration, including a service destroyed before its launch task runs; always release its completion barrier when cleanup ends.
+- Keep delayed onboarding behind all dashboard dialogs, including appearance, brightness, help, history and the connection checklist.
 
 ## 2.0.2-beta.2 — Unreleased
 
