@@ -2,6 +2,7 @@
 
 ## 2.0.2-beta.3 — Unreleased
 
+- Document the user-confirmed Odin settings solution for the black built-in display, in English and Dutch; keep the approximate “turn off screen” wording distinct from a verified firmware label.
 - Replace a helper left by an older APK automatically when protection next starts, restoring USB settings first. Updating no longer needs a manual Stop and Auto protect toggle.
 - Use plain-language dashboard titles in English and Dutch.
 - Add ROADMAP.md with usability as priority 1.
