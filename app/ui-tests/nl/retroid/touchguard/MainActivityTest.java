@@ -211,4 +211,24 @@ public class MainActivityTest {
             assertNotNull(activity.getSupportFragmentManager().findFragmentByTag(DisplayHelpDialog.TAG));
         }
     }
+
+    @Test public void dashboardDialogsDoNotGetCoveredByDelayedOnboarding() {
+        RuntimeEnvironment.getApplication().getSharedPreferences("MainActivity", android.content.Context.MODE_PRIVATE)
+                .edit().putBoolean(OnboardingDialog.COMPLETE, false).commit();
+        for (int id : new int[]{R.id.appearance, R.id.brightness, R.id.help, R.id.history, R.id.connection_test}) {
+            try (ActivityController<MainActivity> controller = Robolectric.buildActivity(MainActivity.class).setup()) {
+                MainActivity activity = controller.get();
+                activity.findViewById(id).performClick();
+                android.app.Dialog chosen = ShadowDialog.getLatestDialog();
+                Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(Duration.ofSeconds(1));
+                assertTrue(chosen.isShowing());
+                assertNull("Introduction covered dashboard dialog " + id,
+                        activity.getSupportFragmentManager().findFragmentByTag(OnboardingDialog.TAG));
+                controller.pause().stop().start().resume().visible();
+                Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(Duration.ofSeconds(1));
+                assertNull(activity.getSupportFragmentManager().findFragmentByTag(OnboardingDialog.TAG));
+                chosen.dismiss();
+            }
+        }
+    }
 }
