@@ -1,0 +1,28 @@
+name: Bug report
+description: Report a touch or wake problem with the exact setup you tested.
+body:
+  - type: markdown
+    attributes:
+      value: Do not paste private device identifiers from the diagnostic export; trim it to the failing session.
+  - type: input
+    id: version
+    attributes:
+      label: Version and download source
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Odin model, firmware, Android version and OdinDuo version
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps, expected result, and actual result
+    validations:
+      required: true
+  - type: textarea
+    id: conditions
+    attributes:
+      label: Dock and display connected, sleep or wake step that failed, and which checks the app reported

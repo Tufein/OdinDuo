@@ -175,3 +175,11 @@ The diagnostic logger and previous experimental console helpers remain in `tools
 - [AOSP LocalDisplayAdapter](https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/services/core/java/com/android/server/display/LocalDisplayAdapter.java) implements the external display backlight adapter inspected during the brightness investigation.
 
 Independent community project; not affiliated with AYN or Retroid. Original OdinDuo source is available under the [MIT licence](LICENSE). External projects and bundled dependencies retain their respective licences; see [NOTICE.md](NOTICE.md).
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for how to report a vulnerability and which secrets this project stores.
+
+## Documentation
+
+[Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md) · [Roadmap](ROADMAP.md) · [Release notes](docs/releases)
