@@ -2,6 +2,8 @@
 
 ## 2.0.2-beta.3 — Unreleased
 
+- Show “Update needed” with one “Update protection” action when a helper from an earlier APK is still running. Nothing is replaced silently; the existing protection path restores USB settings and starts the new helper, and the Auto protect setting is kept. Not yet verified on hardware.
+- Fail release builds early when the signing key is missing, and require the store, alias and key passwords when a custom ODINDUO_KEYSTORE is set.
 - Document the user-confirmed Odin settings solution for the black built-in display, in English and Dutch; keep the approximate “turn off screen” wording distinct from a verified firmware label.
 - Replace a helper left by an older APK automatically when protection next starts, restoring USB settings first. Updating no longer needs a manual Stop and Auto protect toggle.
 - Use plain-language dashboard titles in English and Dutch.

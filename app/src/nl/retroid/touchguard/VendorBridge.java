@@ -56,6 +56,11 @@ final class VendorBridge {
         return heartbeat(context).alive;
     }
 
+    /** A helper from an earlier APK keeps running after an update until the user confirms replacement. */
+    static boolean helperOutdated(Context context) {
+        return guardAlive(context) && !helperCurrent(context);
+    }
+
     static GuardHeartbeat heartbeat(Context context) {
         try {
             String savedBoot = new String(new AtomicFile(new File(context.getFilesDir(), "guard-boot")).readFully(), StandardCharsets.UTF_8);

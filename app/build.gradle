@@ -32,12 +32,21 @@ android {
     signingConfigs {
         localRelease {
             // Preserve updates for existing users. The private key stays outside Git.
-            def releaseKey = file(System.getenv('ODINDUO_KEYSTORE') ?: 'build/debug.keystore')
+            def customKey = System.getenv('ODINDUO_KEYSTORE')
+            if (customKey != null) {
+                // A custom key must never fall back to the test passwords below.
+                ['ODINDUO_STORE_PASSWORD', 'ODINDUO_KEY_ALIAS', 'ODINDUO_KEY_PASSWORD'].each { name ->
+                    if (System.getenv(name) == null) {
+                        throw new GradleException("ODINDUO_KEYSTORE is set, so ${name} must be set too.")
+                    }
+                }
+            }
+            def releaseKey = file(customKey ?: 'build/debug.keystore')
             if (releaseKey.exists()) {
                 storeFile releaseKey
-                storePassword System.getenv('ODINDUO_STORE_PASSWORD') ?: 'android'
-                keyAlias System.getenv('ODINDUO_KEY_ALIAS') ?: 'androiddebugkey'
-                keyPassword System.getenv('ODINDUO_KEY_PASSWORD') ?: 'android'
+                storePassword customKey != null ? System.getenv('ODINDUO_STORE_PASSWORD') : 'android'
+                keyAlias customKey != null ? System.getenv('ODINDUO_KEY_ALIAS') : 'androiddebugkey'
+                keyPassword customKey != null ? System.getenv('ODINDUO_KEY_PASSWORD') : 'android'
             }
         }
         debug {
@@ -66,6 +75,17 @@ def guardResources = tasks.register('generateGuardResources', Copy) {
     rename { name -> name == 'pserver-power-guard.sh' ? 'power_guard.sh' : 'power_stop.sh' }
 }
 tasks.named('preBuild').configure { dependsOn guardResources }
+
+// A release build without its key would be unsigned and silently unusable for updates. Fail early.
+gradle.taskGraph.whenReady { graph ->
+    def releaseRequested = graph.allTasks.any { task ->
+        task.project == project && task.name.startsWith('assemble') && task.name.endsWith('Release')
+    }
+    def releaseKey = file(System.getenv('ODINDUO_KEYSTORE') ?: 'build/debug.keystore')
+    if (releaseRequested && !releaseKey.exists()) {
+        throw new GradleException("Release build needs the signing key at ${releaseKey}. Set ODINDUO_KEYSTORE to it.")
+    }
+}
 
 dependencies {
     testImplementation 'junit:junit:4.13.2'

@@ -43,6 +43,7 @@ public final class MainActivity extends AppCompatActivity {
     private Chip stateChip;
     private MaterialButton start;
     private MaterialButton stop;
+    private MaterialButton update;
     private String localError;
     private MaterialSwitch automatic;
     private TextView automaticSummary;
@@ -103,6 +104,8 @@ public final class MainActivity extends AppCompatActivity {
         stateChip = findViewById(R.id.state_chip);
         start = findViewById(R.id.start);
         stop = findViewById(R.id.stop);
+        update = findViewById(R.id.update);
+        update.setOnClickListener(view -> startGuard());
         automatic = findViewById(R.id.automatic);
         automaticSummary = findViewById(R.id.automatic_summary);
         ((TextView) findViewById(R.id.version)).setText(getString(R.string.version_label,
@@ -150,7 +153,7 @@ public final class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, R.string.status_settings_error, Toast.LENGTH_LONG).show();
             }
         }
-        if (pendingStart && snapshot.running) pendingStart = false;
+        if (pendingStart && snapshot.running && !VendorBridge.helperOutdated(this)) pendingStart = false;
         if (pendingStop && (!snapshot.running || "stopping".equals(snapshot.state))) pendingStop = false;
         if ((pendingStart || pendingStop) && (now < actionRequestedAt || now - actionRequestedAt > REQUEST_TIMEOUT_MS)) {
             pendingStart = false;
@@ -159,10 +162,15 @@ public final class MainActivity extends AppCompatActivity {
         }
         String message = localError != null && !snapshot.running ? localError : snapshot.text;
         String state = localError != null && !snapshot.running ? "error" : snapshot.state;
+        // A helper from an earlier APK still runs after an update. Ask once; never replace it silently.
+        boolean outdated = VendorBridge.helperOutdated(this);
+        if (outdated && !"error".equals(state)) { state = "outdated"; message = getString(R.string.status_outdated); }
         if (pendingStart) { state = "starting"; message = getString(R.string.status_starting); }
         if (pendingStop) { state = "stopping"; message = getString(R.string.status_stopping); }
         if (!android.text.TextUtils.equals(status.getText(), message)) status.setText(message);
         boolean busy = snapshot.running || pendingStart || pendingStop;
+        update.setVisibility("outdated".equals(state) ? View.VISIBLE : View.GONE);
+        update.setEnabled(!pendingStart && !pendingStop);
         start.setEnabled(!busy && pendingAutomatic == null);
         start.setText(pendingStart ? R.string.starting_protection
                 : "error".equals(state) ? R.string.retry_protection : R.string.start_protection);
@@ -182,6 +190,7 @@ public final class MainActivity extends AppCompatActivity {
             case "active": titleResource = R.string.title_active; chipResource = R.string.chip_active; break;
             case "stopping": titleResource = R.string.title_stopping; chipResource = R.string.chip_stopping; break;
             case "error": titleResource = R.string.title_error; chipResource = R.string.chip_error; break;
+            case "outdated": titleResource = R.string.title_outdated; chipResource = R.string.chip_outdated; break;
             default: break;
         }
         title.setText(titleResource);
@@ -221,7 +230,9 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void startGuard() {
-        if (pendingStart || pendingStop || pendingAutomatic != null || GuardStatusStore.read(this).running) return;
+        // An outdated helper counts as not running: starting the service replaces it with this version.
+        if (pendingStart || pendingStop || pendingAutomatic != null
+                || (GuardStatusStore.read(this).running && !VendorBridge.helperOutdated(this))) return;
         localError = null;
         EventLog.write(this, "power protection requested");
         if (!VendorBridge.available()) {

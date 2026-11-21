@@ -9,6 +9,10 @@
     <string name="title_stopping">Afronden…</string>
     <string name="title_recovering">We herstellen de verbinding…</string>
     <string name="title_error">Actie nodig</string>
+    <string name="title_outdated">Update nodig</string>
+    <string name="chip_outdated">Update</string>
+    <string name="update_protection">Bescherming bijwerken</string>
+    <string name="status_outdated">OdinDuo is bijgewerkt. Werk de bescherming één keer bij om de nieuwe versie te gebruiken. Je instelling voor Automatische bescherming blijft zoals hij is.</string>
     <string name="device_connected">Retroid-scherm aangesloten</string>
     <string name="device_disconnected">Wachten op je Retroid-scherm</string>
     <string name="start_protection">Bescherming starten</string>
