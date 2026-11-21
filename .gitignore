@@ -9,3 +9,8 @@ local.properties
 __pycache__/
 .DS_Store
 app/res/raw/power_guard.sh
+
+# Lokale bouwomgeving (Alpine/musl), niet in Git
+.toolroot/
+.sdk/
+.toolenv.sh

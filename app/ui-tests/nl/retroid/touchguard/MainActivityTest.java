@@ -231,4 +231,37 @@ public class MainActivityTest {
             }
         }
     }
+
+    /** Simulates a live helper; a null version means it was started by an APK without the marker. */
+    private static void writeLiveHelper(String version) throws Exception {
+        java.io.File files = RuntimeEnvironment.getApplication().getFilesDir();
+        String token = "0123456789abcdef0123456789abcdef";
+        long seconds = android.os.SystemClock.elapsedRealtime() / 1000;
+        java.nio.file.Files.write(new java.io.File(files, "guard-boot").toPath(), "boot:7".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        java.nio.file.Files.write(new java.io.File(files, "guard-enabled").toPath(), token.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        java.nio.file.Files.write(new java.io.File(files, "guard-heartbeat").toPath(),
+                (token + " " + seconds).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        if (version != null) java.nio.file.Files.write(new java.io.File(files, "guard-version").toPath(),
+                version.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    @Test public void helperFromEarlierApkOffersOneUpdateAction() throws Exception {
+        writeLiveHelper(null);
+        try (ActivityController<MainActivity> controller = Robolectric.buildActivity(MainActivity.class).setup()) {
+            MainActivity activity = controller.get();
+            assertEquals(View.VISIBLE, activity.findViewById(R.id.update).getVisibility());
+            assertEquals(activity.getString(R.string.update_protection),
+                    ((TextView) activity.findViewById(R.id.update)).getText().toString());
+            assertEquals(activity.getString(R.string.title_outdated),
+                    ((TextView) activity.findViewById(R.id.state_title)).getText().toString());
+            assertEquals(View.GONE, activity.findViewById(R.id.error_actions).getVisibility());
+        }
+    }
+
+    @Test public void currentHelperHasNoUpdateAction() throws Exception {
+        writeLiveHelper(String.valueOf(BuildConfig.VERSION_CODE));
+        try (ActivityController<MainActivity> controller = Robolectric.buildActivity(MainActivity.class).setup()) {
+            assertEquals(View.GONE, controller.get().findViewById(R.id.update).getVisibility());
+        }
+    }
 }

@@ -9,6 +9,10 @@
     <string name="title_stopping">Wrapping up…</string>
     <string name="title_recovering">Getting back on track…</string>
     <string name="title_error">Needs your attention</string>
+    <string name="title_outdated">Update needed</string>
+    <string name="chip_outdated">Update</string>
+    <string name="update_protection">Update protection</string>
+    <string name="status_outdated">OdinDuo was updated. Update protection once to use the new version. Your Auto protect setting stays as it is.</string>
     <string name="device_connected">Retroid display connected</string>
     <string name="device_disconnected">Waiting for your Retroid display</string>
     <string name="start_protection">Start protection</string>
